@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<executable>
+    <category>Segmentation</category>
+    <title>Airway segmentation</title>
+    <description><![CDATA[Semi-automatically extracts the airway from a CT image.]]></description>
+    <version>1.0</version>
+    <documentation-url>TO DO !!!!!</documentation-url>
+    <license></license>
+    <contributor>Marc Niethammer, Yi Hong, Johan Andruejol</contributor>
+    <acknowledgements><![CDATA[TO DO !!!!!!]]></acknowledgements>
+
+    <parameters>
+        <label>Input/Output</label>
+        <description><![CDATA[Input/Output Parameters]]></description>
+
+        <image>
+            <name>inputImage</name>
+            <label>Input Image</label>
+            <channel>input</channel>
+            <index>0</index>
+            <default>None</default>
+            <description><![CDATA[Input image to be segmented.]]></description>
+        </image>  
+
+        <image>
+            <name>outputImage</name>
+            <label>Output Image</label>
+            <channel>output</channel>
+            <index>1</index>
+            <default>None</default>
+            <description><![CDATA[Segmented output image.]]></description>
+        </image>
+
+        <geometry>
+          <name>outputGeometry</name>
+          <label>Output Geometry</label>
+          <channel>output</channel>
+          <index>2</index>
+          <description><![CDATA[Segmented surface image.]]></description>
+        </geometry>
+    </parameters>
+    
+    <parameters>
+        <label>Segmentation Seeds</label>
+        <description><![CDATA[Used for automatically leave the
+        lungs out of the segmentation.]]>
+        </description>
+        
+        <point multiple="false" coordinateSystem="ras">
+            <name>tracheaCarina</name>
+            <label>Trachea carina</label>
+            <longflag>--tracheaCarina</longflag>
+            <description><![CDATA[Point placed at the carina of the trachea.]]>.</description>
+            <default>0,0,0</default>
+        </point>
+        <double>
+            <name>tracheaCarinaRadius</name>
+            <label>Trachea carina point's radius</label>
+            <longflag>--tracheaCarinaRadius</longflag> 
+            <default>20.0</default>
+            <minimum>5.0</minimum>
+            <maximum>50.0</maximum>
+            <description><![CDATA[The radius of the point placed at the trachea carina.]]></description>
+        </double>
+        
+        <point multiple="false" coordinateSystem="ras">
+            <name>pyrinaAperture</name>
+            <label>Pyrina aperture</label>
+            <longflag>--pyrinaAperture</longflag>
+            <description><![CDATA[Point placed at the pyrina aperture.]]></description>
+            <default>0,0,0</default>
+        </point>
+        <double>
+            <name>pyrinaApertureRadius</name>
+            <label>Pyrina aperture point's radius</label>
+            <longflag>--pyrinaApertureRadius</longflag> 
+            <default>20.0</default>
+            <minimum>5.0</minimum>
+            <maximum>50.0</maximum>
+            <description><![CDATA[The radius of the ball placed at the pyrina aperture.]]></description>
+        </double>
+    </parameters>
+    <parameters advanced="true">
+        <label>Advanced Settings</label>
+        <description><![CDATA[Adavanced settings. Default should be good enough for most purposes]]></description>
+        
+        <double>
+            <name>dMaxAirwayRadius</name>
+            <longflag>--maxAirwayRadius</longflag>
+            <label>Airway maximum radius</label>
+            <default>9</default>
+            <description><![CDATA[Maximal radius for morphological closing (in mm). Should be set roughly a little larger than the maximal expected radius for the airway.]]></description>
+        </double>
+
+        <double>
+            <name>dErodeDistance</name>
+            <longflag>--erodeDistance</longflag>
+            <label>Erosion distance</label>
+            <default>2</default>
+            <description><![CDATA[Erosion distance from estimate of the outer skin layer (in mm) to prevent leaking of the segmetnation out of the nose.]]></description>
+        </double>
+
+        <integer>
+            <name>iMaximumNumberOfCVIterations</name>
+            <longflag>--maxNumberOfCVIterations</longflag>
+            <label>Maximum number of Chan Vese iterations.</label>
+            <default>-1</default>
+            <description><![CDATA[Maximum number of Chan Vese iterations (to smooth the final Otsu-thresholding result). If set to a negative value won't be used.]]></description>
+        </integer>
+
+        <double>
+            <name>dCVLambda</name>
+            <longflag>--lambda</longflag>
+            <label>Smoothing parameter for Chan Vese segmentation.</label>
+            <default>0.1</default>
+            <description><![CDATA[Smoothing parameter for Chan Vese segmentation. The larger the smoother.]]></description>
+        </double>
+        
+        <integer>
+            <name>iComponent</name>
+            <longflag>--component</longflag>
+            <label>Airway manual label</label>
+            <default>-1</default>
+            <description><![CDATA[Use this to manualy choose the possible airway label. If the value is inferior to 0, it won't be used.]]></description>
+        </integer>
+        
+        <boolean>
+            <name>bNoWarning</name>
+            <longflag>--noWarning</longflag>
+            <label>Break on warning</label>
+            <default>true</default>
+            <description><![CDATA[Choose whether or not the execution stop if a warning is found.]]></description>
+        </boolean>
+        
+        <boolean>
+            <name>bDebug</name>
+            <longflag>--debug</longflag>
+            <label>Output debug informations</label>
+            <default>false</default>
+            <description><![CDATA[Choose whether or not to output the debug informations and images.]]></description>
+        </boolean>
+        
+        <string>
+            <name>sDebugFolder</name>
+            <longflag>--debugFolder</longflag>
+            <label>Destination folder for debug images</label>
+            <default>None</default>
+            <description><![CDATA[Used only if Debug on. Choose the destination folder of the images.]]></description>
+        </string>
+      
+    </parameters>
+
+</executable>
+

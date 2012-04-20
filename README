@@ -1,0 +1,14 @@
+Airway Segmenter:
+
+Airway Segmenter is a small exectuable aimed for segmenting the airway of a CT image.
+It is build to be used within Slicer but can also be used
+as a stand alone command line exectuable.
+
+Currently using:
+
+CMAKE: http://www.cmake.org/cmake/resources/software.html
+ITK 4.1.0: http://www.itk.org/ITK/resources/software.html
+Slicer Execution Model: https://github.com/Slicer/SlicerExecutionModel
+
+Optionnal:
+Slicer 4.1.0: http://www.slicer.org/
