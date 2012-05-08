@@ -1,8 +1,8 @@
 Airway Segmenter:
 
-Airway Segmenter is a small exectuable aimed for segmenting the airway of a CT image.
-It is build to be used within Slicer but can also be used
-as a stand alone command line exectuable.
+Airway Segmenter is a small executable aimed for segmenting the airway of a CT image.
+It is built to be used within Slicer but can also be used
+as a stand-alone command line executable.
 
 Currently using:
 
@@ -15,11 +15,11 @@ Slicer 4.1.0: http://www.slicer.org/
 
 ITK Necessary build options:
 
-ITK must be build with at least the following options:
+ITK must be built with at least the following options:
 Module_ITKVtkGlue = True #For ITK/VTK compatibility
 (cf. http://www.itk.org/Wiki/ITK/FAQ#Do_I_need_VTK_to_build_ITK_.3F)
 
 VTK Necessary build options:
 
-VTK must be build with at least the follwing options:
+VTK must be built with at least the following options:
 USE_ANSI_STDLIB = True #For VTK/ITK compatibility
