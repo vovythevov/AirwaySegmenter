@@ -78,11 +78,11 @@ int outputAllSettings(int argc, char* argv[])
                                              << ", " << lowerSeed[2]
                                              << std::endl;
   std::cout << "lowerSeedRadius              = " << lowerSeedRadius << std::endl;
-  std::cout << "pyrinaAperture               = " << pyrinaAperture[0]
-                                             << ", " << pyrinaAperture[1]
-                                             << ", " << pyrinaAperture[2]
+  std::cout << "upperSeed                    = " << upperSeed[0]
+                                             << ", " << upperSeed[1]
+                                             << ", " << upperSeed[2]
                                              << std::endl;
-  std::cout << "pyrinaApertureRadius         = " << pyrinaApertureRadius << std::endl;
+  std::cout << "upperSeedRadius         = " << upperSeedRadius << std::endl;
   std::cout << "bNoWarning                   = " << bNoWarning <<std::endl;
   std::cout << "bDebug                       = " << bDebug << std::endl;
   std::cout << "sDebugFolder                 = " << sDebugFolder << std::endl;
@@ -1039,8 +1039,8 @@ template<class T> int DoIt(int argc, char* argv[], T)
   if (iComponent <= 0)
     {
     nNumAirway = LabelIt<typename T>(relabelFinalWithoutLung->GetOutput(),
-                            pyrinaAperture,
-                            pyrinaApertureRadius,
+                            upperSeed,
+                            upperSeedRadius,
                             bDebug);
     std::cout<<"Label found = "<<componentNumber<<std::endl;
     }
@@ -1062,7 +1062,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
              <<"This probably means that nasal cavity is not segmented "
              <<" (or the point is misplaced)."<<std::endl
              <<" Advice: use --debug to ouput and check all the labels "
-             <<" found and/or increase the pyrinaApertureRadius to "
+             <<" found and/or increase the upperSeedRadius to "
              <<"cover more space"
              <<std::endl;
     if (bNoWarning)

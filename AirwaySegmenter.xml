@@ -64,20 +64,20 @@
         </double>
         
         <point multiple="false" coordinateSystem="ras">
-            <name>pyrinaAperture</name>
-            <label>Pyrina aperture</label>
-            <longflag>--pyrinaAperture</longflag>
-            <description><![CDATA[Point placed at the pyrina aperture.]]></description>
+            <name>upperSeed</name>
+            <label>Upper Seed</label>
+            <longflag>--upperSeed</longflag>
+            <description><![CDATA[Point placed whithin the airway. It should be placed in the broadest airway region in order to help to identify it.]]></description>
             <default>0,0,0</default>
         </point>
         <double>
-            <name>pyrinaApertureRadius</name>
-            <label>Pyrina aperture point's radius</label>
-            <longflag>--pyrinaApertureRadius</longflag> 
+            <name>upperSeedRadius</name>
+            <label>Upper Seed's radius</label>
+            <longflag>--upperSeedRadius</longflag>
             <default>20.0</default>
             <minimum>5.0</minimum>
             <maximum>50.0</maximum>
-            <description><![CDATA[The radius of the ball placed at the pyrina aperture.]]></description>
+            <description><![CDATA[The radius of the upper seed.]]></description>
         </double>
     </parameters>
     <parameters advanced="true">
