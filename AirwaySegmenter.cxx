@@ -73,11 +73,11 @@ int outputAllSettings(int argc, char* argv[])
   std::cout << "iMaximumNumberOfCVIterations = " << iMaximumNumberOfCVIterations << std::endl;
   std::cout << "dCVLambda                    = " << dCVLambda << std::endl;
   std::cout << "iComponent                   = " << iComponent << std::endl;
-  std::cout << "tracheaCarina                = " << tracheaCarina[0]
-                                             << ", " << tracheaCarina[1]
-                                             << ", " << tracheaCarina[2]
+  std::cout << "lowerSeed                    = " << lowerSeed[0]
+                                             << ", " << lowerSeed[1]
+                                             << ", " << lowerSeed[2]
                                              << std::endl;
-  std::cout << "tracheaCarinaRadius          = " << tracheaCarinaRadius << std::endl;
+  std::cout << "lowerSeedRadius              = " << lowerSeedRadius << std::endl;
   std::cout << "pyrinaAperture               = " << pyrinaAperture[0]
                                              << ", " << pyrinaAperture[1]
                                              << ", " << pyrinaAperture[2]
@@ -537,8 +537,8 @@ template<class T> int DoIt(int argc, char* argv[], T)
   if (iComponent <= 0)
     {
     componentNumber = LabelIt<typename T>(relabel->GetOutput(),
-                                            tracheaCarina,
-                                            tracheaCarinaRadius,
+                                            lowerSeed,
+                                            lowerSeedRadius,
                                             bDebug);
     //std::cout<<"Label found = "<<componentNumber<<std::endl;
     }
@@ -730,8 +730,8 @@ template<class T> int DoIt(int argc, char* argv[], T)
   if (iComponent <= 0)
     {
     componentNumber = LabelIt<typename T>(relabelFinal->GetOutput(),
-                            tracheaCarina,
-                            tracheaCarinaRadius,
+                            lowerSeed,
+                            lowerSeedRadius,
                             bDebug);
     //std::cout<<"Label found = "<<componentNumber<<std::endl;
     }
@@ -783,9 +783,9 @@ template<class T> int DoIt(int argc, char* argv[], T)
   //--
 
   float ballX, ballY, ballZ;
-  ballX = -tracheaCarina[0];
-  ballY = -tracheaCarina[1];
-  ballZ = tracheaCarina[2];
+  ballX = -lowerSeed[0];
+  ballY = -lowerSeed[1];
+  ballZ = lowerSeed[2];
   
   if (bDebug)
     {
@@ -793,7 +793,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
               << " " << ballY 
               << " " << ballZ 
               << ", Radius: " 
-              << tracheaCarinaRadius << std::endl;
+              << lowerSeedRadius << std::endl;
     }
 
   //--
@@ -801,12 +801,12 @@ template<class T> int DoIt(int argc, char* argv[], T)
   //--
 
   int ballRegion[6];
-  ballRegion[0] = int(floor( ( ballX - tracheaCarinaRadius - imageOrigin[0] ) / imageSpacing[0] ));
-  ballRegion[1] = int(floor( ( ballY - tracheaCarinaRadius - imageOrigin[1] ) / imageSpacing[1] ));
-  ballRegion[2] = int(floor( ( ballZ - tracheaCarinaRadius - imageOrigin[2] ) / imageSpacing[2] ));
-  ballRegion[3] = int(ceil( ( ballX + tracheaCarinaRadius - imageOrigin[0] ) / imageSpacing[0] ));
-  ballRegion[4] = int(ceil( ( ballY + tracheaCarinaRadius - imageOrigin[1] ) / imageSpacing[1] ));
-  ballRegion[5] = int(ceil( ( ballZ + tracheaCarinaRadius - imageOrigin[2] ) / imageSpacing[2] ));
+  ballRegion[0] = int(floor( ( ballX - lowerSeedRadius - imageOrigin[0] ) / imageSpacing[0] ));
+  ballRegion[1] = int(floor( ( ballY - lowerSeedRadius - imageOrigin[1] ) / imageSpacing[1] ));
+  ballRegion[2] = int(floor( ( ballZ - lowerSeedRadius - imageOrigin[2] ) / imageSpacing[2] ));
+  ballRegion[3] = int(ceil( ( ballX + lowerSeedRadius - imageOrigin[0] ) / imageSpacing[0] ));
+  ballRegion[4] = int(ceil( ( ballY + lowerSeedRadius - imageOrigin[1] ) / imageSpacing[1] ));
+  ballRegion[5] = int(ceil( ( ballZ + lowerSeedRadius - imageOrigin[2] ) / imageSpacing[2] ));
 
   ballRegion[0] = ballRegion[0] > 0 ? ballRegion[0] : 0;
   ballRegion[1] = ballRegion[1] > 0 ? ballRegion[1] : 0;
@@ -879,7 +879,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
         imageBranch->SetPixel( pixelIndexBranch, 0 );
 
         //If within the radius of the ball
-        if( iX * iX + iY * iY + iZ * iZ <= tracheaCarinaRadius * tracheaCarinaRadius )
+        if( iX * iX + iY * iY + iZ * iZ <= lowerSeedRadius * lowerSeedRadius )
           {
           TIndex pixelIndex;
           pixelIndex[0] = iI;
@@ -1119,7 +1119,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
         double iY = iJ * imageSpacing[1] + imageOrigin[1] - ballY;
         double iZ = iK * imageSpacing[2] + imageOrigin[2] - ballZ;
 
-        if( iX * iX + iY * iY + iZ * iZ <= tracheaCarinaRadius * tracheaCarinaRadius )
+        if( iX * iX + iY * iY + iZ * iZ <= lowerSeedRadius * lowerSeedRadius )
           {
           TIndex pixelIndex;
           pixelIndex[0] = iI;

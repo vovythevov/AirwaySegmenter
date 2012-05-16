@@ -47,20 +47,20 @@
         </description>
         
         <point multiple="false" coordinateSystem="ras">
-            <name>tracheaCarina</name>
-            <label>Trachea carina</label>
-            <longflag>--tracheaCarina</longflag>
-            <description><![CDATA[Point placed at the carina of the trachea.]]>.</description>
+            <name>lowerSeed</name>
+            <label>Lower Seed</label>
+            <longflag>--lowerSeed</longflag>
+            <description><![CDATA[Usualy placed at the carina of the trachea, this point is the center of the sphere that helps cutting the lungs apart from the airway.]]>.</description>
             <default>0,0,0</default>
         </point>
         <double>
-            <name>tracheaCarinaRadius</name>
-            <label>Trachea carina point's radius</label>
-            <longflag>--tracheaCarinaRadius</longflag> 
+            <name>lowerSeedRadius</name>
+            <label>Lower Seed's radius</label>
+            <longflag>--lowerSeedRadius</longflag>
             <default>20.0</default>
             <minimum>5.0</minimum>
             <maximum>50.0</maximum>
-            <description><![CDATA[The radius of the point placed at the trachea carina.]]></description>
+            <description><![CDATA[The radius of the lower seed.]]></description>
         </double>
         
         <point multiple="false" coordinateSystem="ras">
