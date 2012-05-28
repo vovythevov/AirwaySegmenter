@@ -80,10 +80,11 @@
             <description><![CDATA[The radius of the upper seed.]]></description>
         </double>
     </parameters>
+
     <parameters advanced="true">
-        <label>Advanced Settings</label>
-        <description><![CDATA[Adavanced settings. Default should be good enough for most purposes]]></description>
-        
+        <label>Advanced Algorithm Settings</label>
+        <description><![CDATA[Advanced algorithm settings. Default should be good enough for most purposes]]></description>
+
         <double>
             <name>dMaxAirwayRadius</name>
             <longflag>--maxAirwayRadius</longflag>
@@ -115,7 +116,7 @@
             <default>0.1</default>
             <description><![CDATA[Smoothing parameter for Chan Vese segmentation. The larger the smoother.]]></description>
         </double>
-        
+
         <integer>
             <name>iComponent</name>
             <longflag>--component</longflag>
@@ -123,7 +124,12 @@
             <default>-1</default>
             <description><![CDATA[Use this to manualy choose the possible airway label. If the value is inferior to 0, it won't be used.]]></description>
         </integer>
-        
+    </parameters>
+
+    <parameters advanced="true">
+        <label>Advanced Debug Settings</label>
+        <description><![CDATA[Advanced debug settings. Used only for debugging.]]></description>
+
         <boolean>
             <name>bNoWarning</name>
             <longflag>--noWarning</longflag>
@@ -147,7 +153,27 @@
             <default>None</default>
             <description><![CDATA[Used only if Debug on. Choose the destination folder of the images.]]></description>
         </string>
-      
+    </parameters>
+
+    <parameters advanced="true">
+        <label>Optionnal Output</label>
+        <description><![CDATA[Optionnal output. Those output will not be loaded automatically in Slicer]]></description>
+
+        <boolean>
+            <name>bRAIImage</name>
+            <longflag>--RAIImage</longflag>
+            <label>Write RAI image</label>
+            <default>false</default>
+            <description><![CDATA[Output the image in RAI coordinates. If the input image is not in RAI coordinates, then it will be resampled.]]></description>
+        </boolean>
+
+        <string>
+            <name>sRAIImagePath</name>
+            <longflag>--RAIImagePath</longflag>
+            <label>Destination folder for RAI image</label>
+            <default>None</default>
+            <description><![CDATA[Used only if "Write RAI image" is on. Choose the output path of the RAI image.]]></description>
+        </string>
     </parameters>
 
 </executable>

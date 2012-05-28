@@ -38,12 +38,16 @@
 #include <itkImageRegionConstIterator.h>
 #include <itkImageSliceConstIteratorWithIndex.h>
 #include <itkImageSliceIteratorWithIndex.h>
+#include <itkIdentityTransform.h>
 #include <itkLabelGeometryImageFilter.h>
 #include <itkMaskImageFilter.h>
+#include <itkMatrix.h>
 #include <itkMultiplyImageFilter.h>
 #include <itkOtsuThresholdImageFilter.h>
 #include <itkRelabelComponentImageFilter.h>
+#include <itkResampleImageFilter.h>
 #include <itkSmartPointer.h>
+#include <itkSpatialOrientationAdapter.h>
 #include <itkSubtractImageFilter.h>
 
 
@@ -86,6 +90,8 @@ int outputAllSettings(int argc, char* argv[])
   std::cout << "bNoWarning                   = " << bNoWarning <<std::endl;
   std::cout << "bDebug                       = " << bDebug << std::endl;
   std::cout << "sDebugFolder                 = " << sDebugFolder << std::endl;
+  std::cout << "bRAIImage                    = " << bRAIImage << std::endl;
+  std::cout << "sRAIImagePath                = " << sRAIImagePath << std::endl;
   std::cout << "-----------------------------------------" << std::endl;
   std::cout << std::endl << std::endl << std::endl;
 
@@ -337,6 +343,65 @@ template<class T> int DoIt(int argc, char* argv[], T)
     std::cerr << "Exception caught !" << std::endl; std::cerr << excep << std::endl; 
     }
 
+
+  //--
+  //-- Automatic Resampling to RAI
+  //--
+  InputImageType::Pointer originalImage = reader->GetOutput();
+  InputImageType::DirectionType originalImageDirection = originalImage->GetDirection();
+
+  itk::SpatialOrientationAdapter adapter;
+  InputImageType::DirectionType RAIDirection =
+    adapter.ToDirectionCosines(itk::SpatialOrientation::ITK_COORDINATE_ORIENTATION_RAI);
+
+  bool shouldConvert = false;
+  for (int i = 0; i < 3; ++i)
+    {
+    for (int j = 0; j < 3; ++j)
+      {
+      if (abs(originalImageDirection[i][j] - RAIDirection[i][j]) > 1e-6)
+        {
+        shouldConvert = true;
+        break;
+        }
+      }
+    }
+
+  typedef itk::ResampleImageFilter<InputImageType, InputImageType> ResampleImageFilterType;
+  ResampleImageFilterType::Pointer resampleFilter = ResampleImageFilterType::New();
+
+  if (shouldConvert)
+    {
+    typedef itk::IdentityTransform<double, DIMENSION> IdentityTransformType;
+
+    resampleFilter->SetTransform(IdentityTransformType::New());
+    resampleFilter->SetInput(originalImage);
+    resampleFilter->SetSize(originalImage->GetLargestPossibleRegion().GetSize());
+    resampleFilter->SetOutputOrigin(originalImage->GetOrigin());
+    resampleFilter->SetOutputSpacing(originalImage->GetSpacing());
+    resampleFilter->Update();
+
+    originalImage = resampleFilter->GetOutput();
+    }
+
+  //Write RAI Image if asked to
+  if (bRAIImage)
+    {
+    WriterType::Pointer writer = WriterType::New();
+    writer->SetInput( originalImage);
+    writer->SetFileName( sRAIImagePath.c_str() );
+
+    try
+      {
+      writer->Update();
+      }
+    catch ( itk::ExceptionObject & excep )
+      {
+      std::cerr << "Exception caught !" << std::endl;
+      std::cerr << excep << std::endl;
+      }
+    }
+
   //--
   //-- Otsu thresholding first
   //--
@@ -346,7 +411,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
 
   otsuThresholdFilter->SetInsideValue( 0 );
   otsuThresholdFilter->SetOutsideValue( 1 );
-  otsuThresholdFilter->SetInput( reader->GetOutput() );
+  otsuThresholdFilter->SetInput( originalImage );
   otsuThresholdFilter->Update();
 
   if (bDebug)
@@ -636,7 +701,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
   maskedOtsuThresholdFilter->SetOutsideValue( 0 );
   maskedOtsuThresholdFilter->SetMaskImage(
                               thresholdExtendedSegmentation->GetOutput() );
-  maskedOtsuThresholdFilter->SetInput( reader->GetOutput() );
+  maskedOtsuThresholdFilter->SetInput( originalImage );
   maskedOtsuThresholdFilter->Update();
 
   // write it out to see if it worked (if it did clean up the code)
@@ -774,9 +839,9 @@ template<class T> int DoIt(int argc, char* argv[], T)
   //--
   //--
 
-  TOrigin imageOrigin = reader->GetOutput()->GetOrigin();
-  TSpacing imageSpacing = reader->GetOutput()->GetSpacing();
-  TSize imageSize = reader->GetOutput()->GetBufferedRegion().GetSize();
+  TOrigin imageOrigin = originalImage->GetOrigin();
+  TSpacing imageSpacing = originalImage->GetSpacing();
+  TSize imageSize = originalImage->GetBufferedRegion().GetSize();
 
   //--
   // Need to convert from RAS (Slicer) to ITK's coordinate system: LPS 
@@ -1171,7 +1236,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
   surfaceWriter->SetFileName( outputGeometry.c_str() );
   surfaceWriter->SetUseFastMarching(true);
   surfaceWriter->SetMaskImage( finalAirwayThreshold->GetOutput() );
-  surfaceWriter->SetInput( reader->GetOutput() );
+  surfaceWriter->SetInput( originalImage );
 
   try
     {
