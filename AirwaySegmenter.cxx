@@ -90,6 +90,8 @@ int outputAllSettings(int argc, char* argv[])
   std::cout << "bNoWarning                   = " << bNoWarning <<std::endl;
   std::cout << "bDebug                       = " << bDebug << std::endl;
   std::cout << "sDebugFolder                 = " << sDebugFolder << std::endl;
+  std::cout << "bRAIImage                    = " << bRAIImage << std::endl;
+  std::cout << "sRAIImagePath                = " << sRAIImagePath << std::endl;
   std::cout << "-----------------------------------------" << std::endl;
   std::cout << std::endl << std::endl << std::endl;
 
@@ -357,7 +359,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
     {
     for (int j = 0; j < 3; ++j)
       {
-      if (originalImageDirection[i][j] - RAIDirection[i][j] < 1e-6)
+      if (abs(originalImageDirection[i][j] - RAIDirection[i][j]) > 1e-6)
         {
         shouldConvert = true;
         break;
@@ -379,26 +381,25 @@ template<class T> int DoIt(int argc, char* argv[], T)
     resampleFilter->SetOutputSpacing(originalImage->GetSpacing());
     resampleFilter->Update();
 
-    if (bDebug)
-      {
-      WriterType::Pointer writer = WriterType::New();
-      writer->SetInput( resampleFilter->GetOutput() );
-      std::string filename = sDebugFolder;
-      filename += "/resampledImage.nrrd";
-      writer->SetFileName( filename );
-
-      try
-        {
-        writer->Update();
-        }
-      catch ( itk::ExceptionObject & excep )
-        {
-        std::cerr << "Exception caught !" << std::endl;
-        std::cerr << excep << std::endl; 
-        }
-      }
-
     originalImage = resampleFilter->GetOutput();
+    }
+
+  //Write RAI Image if asked to
+  if (bRAIImage)
+    {
+    WriterType::Pointer writer = WriterType::New();
+    writer->SetInput( originalImage);
+    writer->SetFileName( sRAIImagePath.c_str() );
+
+    try
+      {
+      writer->Update();
+      }
+    catch ( itk::ExceptionObject & excep )
+      {
+      std::cerr << "Exception caught !" << std::endl;
+      std::cerr << excep << std::endl;
+      }
     }
 
   //--
