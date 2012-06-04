@@ -962,8 +962,10 @@ template<class T> int DoIt(int argc, char* argv[], T)
     }
 
   //--
-  //-- Pick out the branch part
+  //-- Clean up the ball region: First pass
   //--
+
+  //First with simple threshold
 
   ConnectedComponentType::Pointer connectedBranch = ConnectedComponentType::New();
   RelabelComponentType::Pointer relabelBranch = RelabelComponentType::New();
@@ -974,9 +976,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
   relabelBranch->SetNumberOfObjectsToPrint( 5 );
   relabelBranch->Update();
 
-  //--
-  //-- Get geometry statistics
-  //--
+  //Get geometry statistics
 
   typedef itk::LabelGeometryImageFilter<LabelImageType> LabelGeometryImageFilterType;
   LabelGeometryImageFilterType::Pointer labelBranchGeometry =
@@ -995,7 +995,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
     {
     if (bDebug)
       {
-      std::cout << "number of parts in branch: " << nBranchParts << std::endl;
+      std::cout << "Number of parts in branch: " << nBranchParts << std::endl;
       }
 
     double minDist2Ball;
@@ -1037,7 +1037,8 @@ template<class T> int DoIt(int argc, char* argv[], T)
       }
     nBranchId = minLabel;
     }
-  
+
+  //Get the biggest element (i.e. lung + airway)
 
   FinalThresholdingFilterType::Pointer branchThreshold = 
     FinalThresholdingFilterType::New();
@@ -1065,11 +1066,6 @@ template<class T> int DoIt(int argc, char* argv[], T)
       }
     }
 
-  if (bDebug)
-    {
-    std::cout << "Final airway label ... " << std::endl;
-    }
-
   ConnectedComponentType::Pointer connectedFinalWithoutLung = ConnectedComponentType::New();
   RelabelComponentType::Pointer relabelFinalWithoutLung = RelabelComponentType::New();
 
@@ -1094,6 +1090,147 @@ template<class T> int DoIt(int argc, char* argv[], T)
       std::cerr << "Exception caught !" << std::endl; std::cerr << excep << std::endl;
       }
     std::cout << "Relabeled" << std::endl;
+    }
+
+  //--
+  //-- Clean up the ball region: Second pass
+  //--
+
+  if (bDebug)
+    {
+    std::cout << "Get rid of residual lungs in the ball region ... " << std::endl;
+    }
+
+  //First get the original data in the lung+airway regions of the ball
+  for( int iI=ballRegion[0]; iI<=ballRegion[3]; iI++ )
+    {
+    for( int iJ=ballRegion[1]; iJ<=ballRegion[4]; iJ++ )
+      {
+      for( int iK=ballRegion[2]; iK<=ballRegion[5]; iK++ )
+        {
+        double iX = iI * imageSpacing[0] + imageOrigin[0] - ballX;
+        double iY = iJ * imageSpacing[1] + imageOrigin[1] - ballY;
+        double iZ = iK * imageSpacing[2] + imageOrigin[2] - ballZ;
+
+        TIndex pixelIndexBranch;
+        pixelIndexBranch[0] = iI - ballRegion[0];
+        pixelIndexBranch[1] = iJ - ballRegion[1];
+        pixelIndexBranch[2] = iK - ballRegion[2];
+        imageBranch->SetPixel( pixelIndexBranch, -1024 );
+
+        if( iX * iX + iY * iY + iZ * iZ <= lowerSeedRadius * lowerSeedRadius )
+          {
+          TIndex pixelIndex;
+          pixelIndex[0] = iI;
+          pixelIndex[1] = iJ;
+          pixelIndex[2] = iK;
+
+          if( branchThreshold->GetOutput()->GetPixel( pixelIndexBranch ) )
+            {
+            imageBranch->SetPixel( pixelIndexBranch, originalImage->GetPixel( pixelIndex ) );
+            }
+          }
+        }
+      }
+    }
+
+  //Now apply an otsu threshold on it
+  typename OtsuThresholdFilterType::Pointer otsuThresholdBranchFilter = OtsuThresholdFilterType::New();
+  otsuThresholdBranchFilter->SetInsideValue(1);
+  otsuThresholdBranchFilter->SetOutsideValue(0);
+  otsuThresholdBranchFilter->SetInput( imageBranch );
+  otsuThresholdBranchFilter->Update();
+
+  if (bDebug)
+    {
+    WriterLabelType::Pointer writer = WriterLabelType::New();
+    writer->SetInput( relabelFinalWithoutLung->GetOutput() );
+    std::string filename = sDebugFolder;
+    filename += "otsuBranchCleaning.nrrd";
+    writer->SetFileName( filename );
+    try
+      {
+      writer->Update();
+      }
+    catch ( itk::ExceptionObject & excep )
+      {
+      std::cerr << "Exception caught !" << std::endl; std::cerr << excep << std::endl;
+      }
+    }
+
+
+  //And keep only what is relevant
+  if (bDebug)
+    {
+    std::cout << "Getting rid of the small lungs parts ... " << std::endl;
+    }
+
+  for( int iI=ballRegion[0]; iI<=ballRegion[3]; iI++ )
+    {
+    for( int iJ=ballRegion[1]; iJ<=ballRegion[4]; iJ++ )
+      {
+      for( int iK=ballRegion[2]; iK<=ballRegion[5]; iK++ )
+        {
+        double iX = iI * imageSpacing[0] + imageOrigin[0] - ballX;
+        double iY = iJ * imageSpacing[1] + imageOrigin[1] - ballY;
+        double iZ = iK * imageSpacing[2] + imageOrigin[2] - ballZ;
+
+        TIndex pixelIndexBranch;
+        pixelIndexBranch[0] = iI - ballRegion[0];
+        pixelIndexBranch[1] = iJ - ballRegion[1];
+        pixelIndexBranch[2] = iK - ballRegion[2];
+        imageBranch->SetPixel( pixelIndexBranch, 0 );
+
+        if( iX * iX + iY * iY + iZ * iZ <= lowerSeedRadius * lowerSeedRadius )
+          {
+          if( branchThreshold->GetOutput()->GetPixel( pixelIndexBranch )
+              && otsuThresholdBranchFilter->GetOutput()->GetPixel( pixelIndexBranch ) )
+            {
+            imageBranch->SetPixel( pixelIndexBranch, 1 );
+            }
+          }
+        }
+      }
+    }
+
+  if (bDebug)
+    {
+    WriterLabelType::Pointer writer = WriterLabelType::New();
+    writer->SetInput( relabelFinalWithoutLung->GetOutput() );
+    std::string filename = sDebugFolder;
+    filename += "CleanedBallRegion.nrrd";
+    writer->SetFileName( filename );
+    try
+      {
+      writer->Update();
+      }
+    catch ( itk::ExceptionObject & excep )
+      {
+      std::cerr << "Exception caught !" << std::endl; std::cerr << excep << std::endl;
+      }
+    }
+
+  //Of course, get rid of any small residual effects
+  typename ConnectedComponentType::Pointer connectedCleanedBranch = ConnectedComponentType::New();
+  typename RelabelComponentType::Pointer relabelCleanedBranch = RelabelComponentType::New();
+
+  connectedCleanedBranch->SetInput( imageBranch );
+  connectedCleanedBranch->Update();
+  relabelCleanedBranch->SetInput( connectedCleanedBranch->GetOutput() );
+  relabelCleanedBranch->SetNumberOfObjectsToPrint( 5 );
+  relabelCleanedBranch->Update();
+
+  typename FinalThresholdingFilterType::Pointer cleanedBranchThreshold = FinalThresholdingFilterType::New();
+  cleanedBranchThreshold->SetInput( relabelCleanedBranch->GetOutput() );
+  cleanedBranchThreshold->SetLowerThreshold( 1 );
+  cleanedBranchThreshold->SetUpperThreshold( 1 );
+  cleanedBranchThreshold->SetInsideValue( 1 );
+  cleanedBranchThreshold->SetOutsideValue( 0 );
+  cleanedBranchThreshold->Update();
+
+  if (bDebug)
+    {
+    std::cout << "Final airway label ... " << std::endl;
     }
 
   //--
@@ -1168,7 +1305,10 @@ template<class T> int DoIt(int argc, char* argv[], T)
       }
     }
 
-  // put the ball back
+  //--
+  //-- Finaly paste the bball back
+  //--
+
   if (bDebug)
     {
     std::cout << "Putting the branches back ... " << std::endl;
@@ -1196,7 +1336,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
           pixelIndexBranch[1] = iJ - ballRegion[1];
           pixelIndexBranch[2] = iK - ballRegion[2];
 
-          if( branchThreshold->GetOutput()->GetPixel( pixelIndexBranch ) )
+          if( cleanedBranchThreshold->GetOutput()->GetPixel( pixelIndexBranch ) )
             {
             finalAirwayThreshold->GetOutput()->SetPixel(pixelIndex, 1);
             }
