@@ -872,6 +872,157 @@ template<class T> int DoIt(int argc, char* argv[], T)
     }
 
   //--
+  //-- Apply a better cleaning, without any lung
+  //--
+
+  if (bDebug)
+    {
+    std::cout << "Get rid of the small parts of the lungs"
+              <<" that is connected with the airway ... " << std::endl;
+    }
+
+  //First get the original image only where only for the
+  //lungs and the airway
+
+  //TO DO: Those 3 for could probably be factorized
+  for( int iI=ballRegion[0]; iI<=ballRegion[3]; iI++ )
+    {
+    for( int iJ=ballRegion[1]; iJ<=ballRegion[4]; iJ++ )
+      {
+      for( int iK=ballRegion[2]; iK<=ballRegion[5]; iK++ )
+        {
+        double iX = iI * imageSpacing[0] + imageOrigin[0] - ballX;
+        double iY = iJ * imageSpacing[1] + imageOrigin[1] - ballY;
+        double iZ = iK * imageSpacing[2] + imageOrigin[2] - ballZ;
+
+        TIndex pixelIndexBranch;
+        pixelIndexBranch[0] = iI - ballRegion[0];
+        pixelIndexBranch[1] = iJ - ballRegion[1];
+        pixelIndexBranch[2] = iK - ballRegion[2];
+        imageBranch->SetPixel( pixelIndexBranch, -1024 );
+
+        if( iX * iX + iY * iY + iZ * iZ <= lowerSeedRadius * lowerSeedRadius )
+          {
+          TIndex pixelIndex;
+          pixelIndex[0] = iI;
+          pixelIndex[1] = iJ;
+          pixelIndex[2] = iK;
+
+          if( branchThreshold->GetOutput()->GetPixel( pixelIndexBranch ) )
+            {
+            imageBranch->SetPixel( pixelIndexBranch, originalImage->GetPixel( pixelIndex ) );
+            }
+          }
+        }
+      }
+    }
+
+  //Apply an ostu threshold filter
+  typename OtsuThresholdFilterType::Pointer otsuThresholdBranchFilter = OtsuThresholdFilterType::New();
+  otsuThresholdBranchFilter->SetInsideValue(1);
+  otsuThresholdBranchFilter->SetOutsideValue(0);
+  otsuThresholdBranchFilter->SetInput( imageBranch );
+  otsuThresholdBranchFilter->Update();
+
+  if (bDebug)
+    {
+    WriterLabelType::Pointer writer = WriterLabelType::New();
+    writer->SetInput( otsuThresholdBranchFilter->GetOutput() );
+    std::string filename = sDebugFolder;
+    filename += "/LungsInBallRegion.nrrd";
+    writer->SetFileName( filename );
+    try
+      {
+      writer->Update();
+      }
+    catch ( itk::ExceptionObject & excep )
+      {
+      std::cerr << "Exception caught !" << std::endl; std::cerr << excep << std::endl;
+      }
+    }
+
+  //Use only what is in both the branch lungs and airway and airway.
+  //-> This should be only airway
+  for( int iI=ballRegion[0]; iI<=ballRegion[3]; iI++ )
+    {
+    for( int iJ=ballRegion[1]; iJ<=ballRegion[4]; iJ++ )
+      {
+      for( int iK=ballRegion[2]; iK<=ballRegion[5]; iK++ )
+        {
+        double iX = iI * imageSpacing[0] + imageOrigin[0] - ballX;
+        double iY = iJ * imageSpacing[1] + imageOrigin[1] - ballY;
+        double iZ = iK * imageSpacing[2] + imageOrigin[2] - ballZ;
+
+        TIndex pixelIndexBranch;
+        pixelIndexBranch[0] = iI - ballRegion[0];
+        pixelIndexBranch[1] = iJ - ballRegion[1];
+        pixelIndexBranch[2] = iK - ballRegion[2];
+        imageBranch->SetPixel( pixelIndexBranch, 0 );
+
+        if( iX * iX + iY * iY + iZ * iZ <= lowerSeedRadius * lowerSeedRadius )
+          {
+          if( branchThreshold->GetOutput()->GetPixel( pixelIndexBranch )
+              && otsuThresholdBranchFilter->GetOutput()->GetPixel( pixelIndexBranch ) )
+            {
+            imageBranch->SetPixel( pixelIndexBranch, 1 );
+            }
+          }
+        }
+      }
+    }
+
+  if (bDebug)
+    {
+    WriterLabelType::Pointer writer = WriterLabelType::New();
+    writer->SetInput( imageBranch );
+    std::string filename = sDebugFolder;
+    filename += "/OnlyAirwayInBallRegion.nrrd";
+    writer->SetFileName( filename );
+    try
+      {
+      writer->Update();
+      }
+    catch ( itk::ExceptionObject & excep )
+      {
+      std::cerr << "Exception caught !" << std::endl; std::cerr << excep << std::endl;
+      }
+    }
+
+  typename ConnectedComponentType::Pointer connectedCleanedBranch = ConnectedComponentType::New();
+  typename RelabelComponentType::Pointer relabelCleanedBranch = RelabelComponentType::New();
+
+  connectedCleanedBranch->SetInput( imageBranch );
+  connectedCleanedBranch->Update();
+  relabelCleanedBranch->SetInput( connectedCleanedBranch->GetOutput() );
+  relabelCleanedBranch->SetNumberOfObjectsToPrint( 5 );
+  relabelCleanedBranch->Update(); 
+
+  typename FinalThresholdingFilterType::Pointer cleanBranchThreshold = FinalThresholdingFilterType::New();
+  cleanBranchThreshold->SetInput( relabelCleanedBranch->GetOutput() );
+  cleanBranchThreshold->SetLowerThreshold( 1 );
+  cleanBranchThreshold->SetUpperThreshold( 1 );
+  cleanBranchThreshold->SetInsideValue( 1 );
+  cleanBranchThreshold->SetOutsideValue( 0 );
+  cleanBranchThreshold->Update();
+
+  if (bDebug)
+    {
+    WriterLabelType::Pointer writer = WriterLabelType::New();
+    writer->SetInput( cleanBranchThreshold->GetOutput() );
+    std::string filename = sDebugFolder;
+    filename += "/CleanedBranch.nrrd";
+    writer->SetFileName( filename );
+    try
+      {
+      writer->Update();
+      }
+    catch ( itk::ExceptionObject & excep )
+      {
+      std::cerr << "Exception caught !" << std::endl; std::cerr << excep << std::endl;
+      }
+    }
+
+  //--
   //-- Extract the airway form the (severed) lungs
   //--
 
@@ -1009,8 +1160,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
           pixelIndexBranch[1] = iJ - ballRegion[1];
           pixelIndexBranch[2] = iK - ballRegion[2];
 
-          //if( branchThresholdNew->GetOutput()->GetPixel( pixelIndexBranch ) )
-          if( branchThreshold->GetOutput()->GetPixel( pixelIndexBranch ) )
+          if(cleanBranchThreshold->GetOutput()->GetPixel( pixelIndexBranch ) )
             {
             airwayThreshold->GetOutput()->SetPixel(pixelIndex, 1);
             }
@@ -1021,7 +1171,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
 
   if (bDebug)
     {
-    WriterLabelType::Pointer writer = WriterLabelType::New();
+    typename WriterLabelType::Pointer writer = typename WriterLabelType::New();
     writer->SetInput( airwayThreshold->GetOutput() );
     std::string filename = sDebugFolder;
     filename += "/AirwayWithBallRegion.nrrd";
