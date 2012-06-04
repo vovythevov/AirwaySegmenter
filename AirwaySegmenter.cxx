@@ -642,200 +642,8 @@ template<class T> int DoIt(int argc, char* argv[], T)
     }
 
   //--
-  //-- Now do another Otsu thresholding but just around the current segmentation
-  //-- 
-
-  // For this, we need to make it first a little bit bigger
-
-  ThresholdingFilterType::Pointer thresholdExtendedSegmentation = ThresholdingFilterType::New();
-
-  thresholdExtendedSegmentation->SetInput( FastMarchIt<typename T>(
-                                              largestComponentThreshold->GetOutput(),
-                                              "Out", 
-                                              dErodeDistance,
-                                              dMaxAirwayRadius) );
-
-  thresholdExtendedSegmentation->SetLowerThreshold( 0.0 );
-  
-  // to make sure we get roughly twice the volume if the object would have a circular
-  // cross section;
-  // TODO: maybe make this a command line argument?
-  thresholdExtendedSegmentation->SetUpperThreshold( (sqrt(2.0)-1)*dMaxAirwayRadius );
-
-  thresholdExtendedSegmentation->SetOutsideValue( 0 ); 
-  thresholdExtendedSegmentation->SetInsideValue( 1 );
-
-  // force it so we have the mask available
-  thresholdExtendedSegmentation->Update();
-
-  if (bDebug)
-    {
-    WriterLabelType::Pointer writer = WriterLabelType::New();
-    writer->SetInput( thresholdExtendedSegmentation->GetOutput() );
-    std::string filename = sDebugFolder;
-    filename += "/seg-extended.nhdr";
-    writer->SetFileName( filename );
-
-    try
-      {
-      writer->Update();
-      }
-    catch ( itk::ExceptionObject & excep )
-      {
-      std::cerr << "Exception caught !" << std::endl;
-      std::cerr << excep << std::endl; 
-      }
-    }
-
-  // now do another Otsu thresholding
-  // but restrict the statistics to the currently obtained area 
-  //(custom ostu-threshold filter)
-
-  typedef itk::MaskedOtsuThresholdImageFilter< InputImageType, LabelImageType, LabelImageType >
-    MaskedOtsuThresholdFilterType;
-  MaskedOtsuThresholdFilterType::Pointer maskedOtsuThresholdFilter =
-    MaskedOtsuThresholdFilterType::New();
-
-  // TODO: not sure about these inside/outside settings, check!!
-  maskedOtsuThresholdFilter->SetInsideValue( 1 );
-  maskedOtsuThresholdFilter->SetOutsideValue( 0 );
-  maskedOtsuThresholdFilter->SetMaskImage(
-                              thresholdExtendedSegmentation->GetOutput() );
-  maskedOtsuThresholdFilter->SetInput( originalImage );
-  maskedOtsuThresholdFilter->Update();
-
-  // write it out to see if it worked (if it did clean up the code)
-
-  // write it out
-
-  if (bDebug)
-    {
-    WriterLabelType::Pointer labelWriterMaskedOtsu = WriterLabelType::New();
-    labelWriterMaskedOtsu->SetInput( maskedOtsuThresholdFilter->GetOutput() );
-    std::string filename = sDebugFolder;
-    filename += "/otst-out-masked.nhdr";
-    labelWriterMaskedOtsu->SetFileName( filename );
-
-    try
-      {
-      labelWriterMaskedOtsu->Update();
-      }
-    catch ( itk::ExceptionObject & excep )
-      {
-      std::cerr << "Exception caught !" << std::endl;
-      std::cerr << excep << std::endl;
-      }
-    }
-
   //--
-  //-- Now mask it again and extract the largest component
-  //--
-
-  if (bDebug)
-    {
-    std::cout << " mask it again and extract the largest component ... " << std::endl;
-    }
-
-  TMaskImageFilter::Pointer maskedOtsu = TMaskImageFilter::New();
-
-  maskedOtsu->SetInput1( maskedOtsuThresholdFilter->GetOutput() );
-  maskedOtsu->SetInput2( thresholdDifference->GetOutput() ); // second input is the mask
-
-  if (bDebug)
-    {
-    WriterLabelType::Pointer writer = WriterLabelType::New();
-    writer->SetInput( maskedOtsu->GetOutput() );
-    std::string filename = sDebugFolder;
-    filename += "/maskedOtsu-out_second.nhdr";
-    writer->SetFileName( filename );
-
-    try
-      {
-      writer->Update();
-      }
-    catch ( itk::ExceptionObject & excep )
-      {
-      std::cerr << "Exception caught !" << std::endl; std::cerr << excep << std::endl;
-      }
-
-    std::cout << " Update ... " << std::endl;
-    }
-
-  try
-    {
-    maskedOtsu->Update();
-    }
-  catch ( itk::ExceptionObject & excep )
-    {
-    std::cerr << "Exception caught !" << std::endl;
-    std::cerr << excep << std::endl;
-    return EXIT_FAILURE;
-    }
-
-  //--
-  //-- extract largest the airway with the lungs
-  //--
-
-  if (bDebug)
-    {
-    std::cout << "Extracting final largest connected component ... ";
-    }
-
-  ConnectedComponentType::Pointer connectedFinal = ConnectedComponentType::New();
-  RelabelComponentType::Pointer relabelFinal = RelabelComponentType::New();
-  FinalThresholdingFilterType::Pointer finalThreshold = FinalThresholdingFilterType::New();
-
-  // Label the components in the image and relabel them so that object
-  // numbers increase as the size of the objects decrease.
-  connectedFinal->SetInput ( maskedOtsu->GetOutput());
-  relabelFinal->SetInput( connectedFinal->GetOutput() );
-  relabelFinal->SetNumberOfObjectsToPrint( 5 );
-  relabelFinal->Update();
-
-  if (iComponent <= 0)
-    {
-    componentNumber = LabelIt<typename T>(relabelFinal->GetOutput(),
-                            lowerSeed,
-                            lowerSeedRadius,
-                            bDebug);
-    //std::cout<<"Label found = "<<componentNumber<<std::endl;
-    }
-  else
-    {
-    componentNumber = iComponent;
-    }
-
-  // pull out the largest object
-  finalThreshold->SetInput( relabelFinal->GetOutput() );
-  finalThreshold->SetLowerThreshold( componentNumber ); // object #1
-  finalThreshold->SetUpperThreshold( componentNumber ); // object #1
-  finalThreshold->SetInsideValue(1);
-  finalThreshold->SetOutsideValue(0);
-  finalThreshold->Update();
-
-  if (bDebug)
-    {
-    WriterLabelType::Pointer writer = WriterLabelType::New();
-    writer->SetInput( finalThreshold->GetOutput() );
-    std::string filename = sDebugFolder;
-    filename += "/airway-with-lung.nrrd";
-    writer->SetFileName( filename );
-    try
-      {
-      writer->Update();
-      }
-    catch ( itk::ExceptionObject & excep )
-      {
-      std::cerr << "Exception caught !" << std::endl;
-      std::cerr << excep << std::endl;
-      }
-
-    std::cout<<"..done"<<std::endl;
-    }
-
-  //--
-  //--
-  //Second part of the code : getting rid of lung automatically
+  //-- Getting rid of the lungs automatically
   //--
   //--
 
@@ -901,7 +709,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
     }
 
   //--
-  //--
+  //-- Cut to ball region
   //--
 
   InputImageType::Pointer imageBranch = InputImageType::New();
@@ -951,9 +759,9 @@ template<class T> int DoIt(int argc, char* argv[], T)
           pixelIndex[1] = iJ;
           pixelIndex[2] = iK;
 
-          if( finalThreshold->GetOutput()->GetPixel(pixelIndex) )
+          if( largestComponentThreshold->GetOutput()->GetPixel(pixelIndex) )
             {
-            finalThreshold->GetOutput()->SetPixel(pixelIndex, 0);
+            largestComponentThreshold->GetOutput()->SetPixel(pixelIndex, 0);
             imageBranch->SetPixel( pixelIndexBranch, 1 );
             }
           }
@@ -962,7 +770,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
     }
 
   //--
-  //-- Pick out the branch part
+  //-- Clean the ball region
   //--
 
   ConnectedComponentType::Pointer connectedBranch = ConnectedComponentType::New();
@@ -974,9 +782,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
   relabelBranch->SetNumberOfObjectsToPrint( 5 );
   relabelBranch->Update();
 
-  //--
   //-- Get geometry statistics
-  //--
 
   typedef itk::LabelGeometryImageFilter<LabelImageType> LabelGeometryImageFilterType;
   LabelGeometryImageFilterType::Pointer labelBranchGeometry =
@@ -1053,7 +859,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
     WriterLabelType::Pointer writer = WriterLabelType::New();
     writer->SetInput( branchThreshold->GetOutput() );
     std::string filename = sDebugFolder;
-    filename += "/FinalThresholdNoBranch.nrrd";
+    filename += "/CleanBallRegion.nrrd";
     writer->SetFileName( filename );
     try
       {
@@ -1065,25 +871,29 @@ template<class T> int DoIt(int argc, char* argv[], T)
       }
     }
 
+  //--
+  //-- Extract the airway form the (severed) lungs
+  //--
+
   if (bDebug)
     {
-    std::cout << "Final airway label ... " << std::endl;
+    std::cout << "Airway labelling ... " << std::endl;
     }
 
-  ConnectedComponentType::Pointer connectedFinalWithoutLung = ConnectedComponentType::New();
-  RelabelComponentType::Pointer relabelFinalWithoutLung = RelabelComponentType::New();
+  ConnectedComponentType::Pointer connectedForAirwayOnly = ConnectedComponentType::New();
+  RelabelComponentType::Pointer relabelForAirwayOnly = RelabelComponentType::New();
 
-  connectedFinalWithoutLung->SetInput( finalThreshold->GetOutput() );
-  relabelFinalWithoutLung->SetInput( connectedFinalWithoutLung->GetOutput() );
-  relabelFinalWithoutLung->SetNumberOfObjectsToPrint( 5 );
-  relabelFinalWithoutLung->Update();
+  connectedForAirwayOnly->SetInput( largestComponentThreshold->GetOutput() );
+  relabelForAirwayOnly->SetInput( connectedForAirwayOnly->GetOutput() );
+  relabelForAirwayOnly->SetNumberOfObjectsToPrint( 5 );
+  relabelForAirwayOnly->Update();
 
   if (bDebug)
     {
     WriterLabelType::Pointer writer = WriterLabelType::New();
-    writer->SetInput( relabelFinalWithoutLung->GetOutput() );
+    writer->SetInput( relabelForAirwayOnly->GetOutput() );
     std::string filename = sDebugFolder;
-    filename += "/relabelFinalWithLung.nrrd";
+    filename += "/relabeledImageForAirwayOnly.nrrd";
     writer->SetFileName( filename );
     try
       {
@@ -1097,21 +907,21 @@ template<class T> int DoIt(int argc, char* argv[], T)
     }
 
   //--
-  //--Find the airway label using the pyryna apreture position
+  //--Find the airway label using the upper seed position
   //--
 
   int nNumAirway = 0;
   if (iComponent <= 0)
     {
-    nNumAirway = LabelIt<typename T>(relabelFinalWithoutLung->GetOutput(),
-                            upperSeed,
-                            upperSeedRadius,
-                            bDebug);
+    nNumAirway = LabelIt<typename T>(relabelForAirwayOnly->GetOutput(),
+                                     upperSeed,
+                                     upperSeedRadius,
+                                     bDebug);
     std::cout<<"Label found = "<<componentNumber<<std::endl;
     }
   else
     {
-    componentNumber = nNumAirway;
+    nNumAirway = iComponent;
     }
 
   //Check if the maximum label found is 0,
@@ -1119,7 +929,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
   //
   //-> Nasal cavity probably not segmented !
   //
-  if (nNumAirway == 0) 
+  if (nNumAirway == 0)
     {
     std::cerr<<"WARNING !"<<std::endl;
     std::cerr<<"The maximum label found in the spherical region around"
@@ -1142,21 +952,21 @@ template<class T> int DoIt(int argc, char* argv[], T)
               << " is picked as the airway." << std::endl;
     }
 
-  FinalThresholdingFilterType::Pointer finalAirwayThreshold = 
+  FinalThresholdingFilterType::Pointer airwayThreshold = 
     FinalThresholdingFilterType::New();
-  finalAirwayThreshold->SetInput( relabelFinalWithoutLung->GetOutput() );
-  finalAirwayThreshold->SetLowerThreshold( nNumAirway ); 
-  finalAirwayThreshold->SetUpperThreshold( nNumAirway ); 
-  finalAirwayThreshold->SetInsideValue(1);
-  finalAirwayThreshold->SetOutsideValue(0); 
-  finalAirwayThreshold->Update();
+  airwayThreshold->SetInput( relabelForAirwayOnly->GetOutput() );
+  airwayThreshold->SetLowerThreshold( nNumAirway ); 
+  airwayThreshold->SetUpperThreshold( nNumAirway ); 
+  airwayThreshold->SetInsideValue(1);
+  airwayThreshold->SetOutsideValue(0); 
+  airwayThreshold->Update();
 
   if (bDebug)
     {
     WriterLabelType::Pointer writer = WriterLabelType::New();
-    writer->SetInput( finalAirwayThreshold->GetOutput() );
+    writer->SetInput( airwayThreshold->GetOutput() );
     std::string filename = sDebugFolder;
-    filename += "/final_threshold.nrrd";
+    filename += "/AirwayWithoutBallRegion.nrrd";
     writer->SetFileName( filename );
     try
       {
@@ -1168,7 +978,10 @@ template<class T> int DoIt(int argc, char* argv[], T)
       }
     }
 
-  // put the ball back
+  //--
+  //-- Paste the ball region back to the image
+  //-- 
+
   if (bDebug)
     {
     std::cout << "Putting the branches back ... " << std::endl;
@@ -1196,14 +1009,210 @@ template<class T> int DoIt(int argc, char* argv[], T)
           pixelIndexBranch[1] = iJ - ballRegion[1];
           pixelIndexBranch[2] = iK - ballRegion[2];
 
+          //if( branchThresholdNew->GetOutput()->GetPixel( pixelIndexBranch ) )
           if( branchThreshold->GetOutput()->GetPixel( pixelIndexBranch ) )
             {
-            finalAirwayThreshold->GetOutput()->SetPixel(pixelIndex, 1);
+            airwayThreshold->GetOutput()->SetPixel(pixelIndex, 1);
             }
           }
         }
       }
     }
+
+  if (bDebug)
+    {
+    WriterLabelType::Pointer writer = WriterLabelType::New();
+    writer->SetInput( airwayThreshold->GetOutput() );
+    std::string filename = sDebugFolder;
+    filename += "/AirwayWithBallRegion.nrrd";
+    writer->SetFileName( filename );
+
+    try
+      {
+      writer->Update();
+      }
+    catch ( itk::ExceptionObject & excep )
+      {
+      std::cerr << "Exception caught !" << std::endl;
+      std::cerr << excep << std::endl; 
+      }
+    }
+
+  //--
+  //-- Now do another Otsu thresholding but fine tuned (from previous results)
+  //-- to get the precise airway.
+  //-- 
+
+  // For this, we first need to make the airway region a little bit bigger
+
+  ThresholdingFilterType::Pointer thresholdExtendedSegmentation = ThresholdingFilterType::New();
+
+  thresholdExtendedSegmentation->SetInput( FastMarchIt<typename T>(
+                                              airwayThreshold->GetOutput(),
+                                              "Out", 
+                                              dErodeDistance,
+                                              dMaxAirwayRadius) );
+
+  thresholdExtendedSegmentation->SetLowerThreshold( 0.0 );
+  
+  // to make sure we get roughly twice the volume if the object would have a circular
+  // cross section;
+  // TODO: maybe make this a command line argument?
+  thresholdExtendedSegmentation->SetUpperThreshold( (sqrt(2.0)-1)*dMaxAirwayRadius );
+
+  thresholdExtendedSegmentation->SetOutsideValue( 0 ); 
+  thresholdExtendedSegmentation->SetInsideValue( 1 );
+
+  // force it so we have the mask available
+  thresholdExtendedSegmentation->Update();
+
+  if (bDebug)
+    {
+    WriterLabelType::Pointer writer = WriterLabelType::New();
+    writer->SetInput( thresholdExtendedSegmentation->GetOutput() );
+    std::string filename = sDebugFolder;
+    filename += "/seg-extended.nhdr";
+    writer->SetFileName( filename );
+
+    try
+      {
+      writer->Update();
+      }
+    catch ( itk::ExceptionObject & excep )
+      {
+      std::cerr << "Exception caught !" << std::endl;
+      std::cerr << excep << std::endl; 
+      }
+    }
+
+  // now do the Otsu thresholding with
+  // restricted statistics to the airway area (custom ostu-threshold filter)
+  typedef itk::MaskedOtsuThresholdImageFilter< InputImageType, LabelImageType, LabelImageType >
+    MaskedOtsuThresholdFilterType;
+  MaskedOtsuThresholdFilterType::Pointer maskedOtsuThresholdFilter =
+    MaskedOtsuThresholdFilterType::New();
+
+  // TODO: not sure about these inside/outside settings, check!!
+  maskedOtsuThresholdFilter->SetInsideValue( 1 );
+  maskedOtsuThresholdFilter->SetOutsideValue( 0 );
+  maskedOtsuThresholdFilter->SetMaskImage(
+                              thresholdExtendedSegmentation->GetOutput() );
+  maskedOtsuThresholdFilter->SetInput( originalImage );
+  maskedOtsuThresholdFilter->Update();
+
+  if (bDebug)
+    {
+    WriterLabelType::Pointer labelWriterMaskedOtsu = WriterLabelType::New();
+    labelWriterMaskedOtsu->SetInput( maskedOtsuThresholdFilter->GetOutput() );
+    std::string filename = sDebugFolder;
+    filename += "/CustomMaskedOtsuFilterOutput.nhdr";
+    labelWriterMaskedOtsu->SetFileName( filename );
+
+    try
+      {
+      labelWriterMaskedOtsu->Update();
+      }
+    catch ( itk::ExceptionObject & excep )
+      {
+      std::cerr << "Exception caught !" << std::endl;
+      std::cerr << excep << std::endl;
+      }
+    }
+
+  //--
+  //-- Now mask it again and extract the largest component
+  //--
+
+  if (bDebug)
+    {
+    std::cout << " mask it again and extract the largest component ... " << std::endl;
+    }
+
+  TMaskImageFilter::Pointer maskedOtsu = TMaskImageFilter::New();
+
+  maskedOtsu->SetInput1( maskedOtsuThresholdFilter->GetOutput() );
+  maskedOtsu->SetInput2( airwayThreshold->GetOutput() ); // second input is the mask
+
+
+  if (bDebug)
+    {
+    WriterLabelType::Pointer writer = WriterLabelType::New();
+    writer->SetInput( maskedOtsu->GetOutput() );
+    std::string filename = sDebugFolder;
+    filename += "/AirwayAndPossiblyOtherBits.nhdr";
+    writer->SetFileName( filename );
+
+    try
+      {
+      writer->Update();
+      }
+    catch ( itk::ExceptionObject & excep )
+      {
+      std::cerr << "Exception caught !" << std::endl; std::cerr << excep << std::endl;
+      }
+
+    std::cout << " Update ... " << std::endl;
+    }
+
+  try
+    {
+    maskedOtsu->Update();
+    }
+  catch ( itk::ExceptionObject & excep )
+    {
+    std::cerr << "Exception caught !" << std::endl;
+    std::cerr << excep << std::endl;
+    return EXIT_FAILURE;
+    }
+
+  //--
+  //-- Extract largest component: the airway
+  //--
+
+  if (bDebug)
+    {
+    std::cout << "Extracting final largest connected component ... ";
+    }
+
+  ConnectedComponentType::Pointer connectedFinal = ConnectedComponentType::New();
+  RelabelComponentType::Pointer relabelFinal = RelabelComponentType::New();
+  FinalThresholdingFilterType::Pointer finalThreshold = FinalThresholdingFilterType::New();
+
+  // Label the components in the image and relabel them so that object
+  // numbers increase as the size of the objects decrease.
+  connectedFinal->SetInput ( maskedOtsu->GetOutput());
+  relabelFinal->SetInput( connectedFinal->GetOutput() );
+  relabelFinal->SetNumberOfObjectsToPrint( 5 );
+  relabelFinal->Update();
+
+  if (iComponent <= 0)
+    {
+    componentNumber = LabelIt<typename T>(relabelFinal->GetOutput(),
+                            lowerSeed,
+                            lowerSeedRadius,
+                            bDebug);
+    //std::cout<<"Label found = "<<componentNumber<<std::endl;
+    }
+  else
+    {
+    componentNumber = iComponent;
+    }
+
+  // pull out the largest object
+  finalThreshold->SetInput( relabelFinal->GetOutput() );
+  finalThreshold->SetLowerThreshold( componentNumber ); // object #1
+  finalThreshold->SetUpperThreshold( componentNumber ); // object #1
+  finalThreshold->SetInsideValue(1);
+  finalThreshold->SetOutsideValue(0);
+  finalThreshold->Update();
+
+  //
+  //
+  //
+  //Was here
+  //
+  //
+  //
 
   if (bDebug)
     {
@@ -1214,7 +1223,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
   //-- Write final image
   //--
   WriterLabelType::Pointer lccWriterFinal = WriterLabelType::New();
-  lccWriterFinal->SetInput( finalAirwayThreshold->GetOutput() );
+  lccWriterFinal->SetInput( finalThreshold->GetOutput() );
   lccWriterFinal->SetFileName( outputImage.c_str() );
 
   try
@@ -1235,7 +1244,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
     itk::AirwaySurfaceWriter< InputImageType, LabelImageType >::New();
   surfaceWriter->SetFileName( outputGeometry.c_str() );
   surfaceWriter->SetUseFastMarching(true);
-  surfaceWriter->SetMaskImage( finalAirwayThreshold->GetOutput() );
+  surfaceWriter->SetMaskImage( finalThreshold->GetOutput() );
   surfaceWriter->SetInput( originalImage );
 
   try
