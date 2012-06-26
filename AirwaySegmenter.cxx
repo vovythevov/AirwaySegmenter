@@ -1248,7 +1248,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
     }
   else
     {
-    componentNumber = nNumAirway;
+    nNumAirway = componentNumber;
     }
 
   //Check if the maximum label found is 0,
