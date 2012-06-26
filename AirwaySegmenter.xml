@@ -127,6 +127,28 @@
     </parameters>
 
     <parameters advanced="true">
+        <label>Maxillary Sinus Removal</label>
+        <description><![CDATA[Advanced settings used to remove the maxillary sinuses.]]></description>
+
+        <point multiple="true" coordinateSystem="ras">
+            <name>maxillarySinusesSeeds</name>
+            <label>Maxillary Sinuses Seeds</label>
+            <longflag>--maxillarySinusesSeed</longflag>
+            <description><![CDATA[Point placed whithin the maxillary sinuses.]]></description>
+            <default>0,0,0</default>
+        </point>
+        <double>
+            <name>maxillarySinusesSeedsRadius</name>
+            <label>Maxillary Sinuses Seed's radius</label>
+            <longflag>--maxillarySinusesRadius</longflag>
+            <default>20.0</default>
+            <minimum>5.0</minimum>
+            <maximum>50.0</maximum>
+            <description><![CDATA[The radius of all the maxillary sinuses seeds.]]></description>
+        </double>
+    </parameters>
+
+    <parameters advanced="true">
         <label>Advanced Debug Settings</label>
         <description><![CDATA[Advanced debug settings. Used only for debugging.]]></description>
 

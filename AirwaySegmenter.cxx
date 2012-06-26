@@ -87,6 +87,14 @@ int outputAllSettings(int argc, char* argv[])
                                              << ", " << upperSeed[2]
                                              << std::endl;
   std::cout << "upperSeedRadius         = " << upperSeedRadius << std::endl;
+  for (int i = 0; i < maxillarySinusesSeeds.size(); ++i)
+    {
+    std::cout << "maxillarySinusesSeeds      = " << maxillarySinusesSeeds[i][0]
+                                             << ", " << maxillarySinusesSeeds[i][1]
+                                             << ", " << maxillarySinusesSeeds[i][2]
+                                             << std::endl;
+    }
+  std::cout << "maxillarySinusesSeedsRadius   = " << maxillarySinusesSeedsRadius << std::endl;
   std::cout << "bNoWarning                   = " << bNoWarning <<std::endl;
   std::cout << "bDebug                       = " << bDebug << std::endl;
   std::cout << "sDebugFolder                 = " << sDebugFolder << std::endl;
