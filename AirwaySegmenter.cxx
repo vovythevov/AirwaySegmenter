@@ -1314,7 +1314,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
     }
 
   //--
-  //-- Finaly paste the bball back
+  //-- Finaly paste the ball back
   //--
 
   if (bDebug)
