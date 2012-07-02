@@ -28,9 +28,11 @@
 
 //ITK includes
 #include <itkAbsoluteValueDifferenceImageFilter.h>
+#include <itkAddImageFilter.h>
 #include <itkBinaryThresholdImageFilter.h>
 #include <itkCastImageFilter.h>
 #include <itkConnectedComponentImageFilter.h>
+#include <itkImageDuplicator.h>
 #include <itkFastMarchingImageFilter.h>
 #include <itkImage.h>
 #include <itkImageFileReader.h>
@@ -95,6 +97,8 @@ int outputAllSettings(int argc, char* argv[])
                                              << std::endl;
     }
   std::cout << "maxillarySinusesSeedsRadius   = " << maxillarySinusesSeedsRadius << std::endl;
+  std::cout << "erosionPercentage             = " << erosionPercentage << std::endl;
+  std::cout << "bRemoveMaxillarySinuses       = " << bRemoveMaxillarySinuses << std::endl;
   std::cout << "bNoWarning                   = " << bNoWarning <<std::endl;
   std::cout << "bDebug                       = " << bDebug << std::endl;
   std::cout << "sDebugFolder                 = " << sDebugFolder << std::endl;
@@ -1353,6 +1357,263 @@ template<class T> int DoIt(int argc, char* argv[], T)
       }
     }
 
+
+  typename LabelImageType::Pointer FinalSegmentation =
+    finalAirwayThreshold->GetOutput();
+
+  //--
+  //-- Optionnaly remove the maxillary sinus(es)
+  //--
+
+  if (bRemoveMaxillarySinuses)
+    {
+    std::cout << "maxillarySinusesSeeds "<<maxillarySinusesSeeds.size() << std::endl;
+    //--
+    //-- First thing, Erode to severe the small connection
+    //-- between the sinuses and the airway
+    //--
+
+    //Note that the erosion is very small
+    typename ThresholdingFilterType::Pointer thresholdSlightErosion =
+      typename ThresholdingFilterType::New();
+    thresholdSlightErosion->SetLowerThreshold( dMaxAirwayRadius*erosionPercentage ); //Should be set ?
+    thresholdSlightErosion->SetUpperThreshold( dMaxAirwayRadius );
+    thresholdSlightErosion->SetOutsideValue( 0 );
+    thresholdSlightErosion->SetInsideValue( 1 );
+
+    //Using custom fast marching function
+    thresholdSlightErosion->SetInput( FastMarchIt<typename T>(
+                                         FinalSegmentation,
+                                         "In",
+                                         dErodeDistance,
+                                         dMaxAirwayRadius));
+    thresholdSlightErosion->Update();
+
+    if (bDebug)
+      {
+      typename WriterLabelType::Pointer writer = typename WriterLabelType::New();
+      writer->SetInput( thresholdSlightErosion->GetOutput() );
+      std::string filename = sDebugFolder;
+      filename += "SlightlyEroderSegmentation.nrrd";
+      writer->SetFileName( filename );
+
+      try
+        {
+        writer->Update();
+        }
+      catch( itk::ExceptionObject & excep )
+        {
+        std::cerr << "Exception caught !" << std::endl;
+        std::cerr << excep << std::endl;
+        }
+      }
+
+    //--
+    //-- Create the image that we will substract from the segmentation
+    //-- It should be all the maxillary sinuses
+    //--
+
+    //First label the different part that have been separated by the erosion
+    typename ConnectedComponentType::Pointer connectedSinuses = typename ConnectedComponentType::New();
+    typename RelabelComponentType::Pointer relabelSinuses = typename RelabelComponentType::New();
+
+    connectedSinuses->SetInput( thresholdSlightErosion->GetOutput() );
+    relabelSinuses->SetInput( connectedSinuses->GetOutput() );
+    relabelSinuses->SetNumberOfObjectsToPrint( 5 );
+    relabelSinuses->Update();
+
+    //Declare filters and a blank image
+    typedef typename itk::AddImageFilter< typename LabelImageType > AddLabelImageFilterType;
+    typedef itk::BinaryThresholdImageFilter<typename LabelImageType, typename LabelImageType >
+      LabelThresholdFilterType;
+    typename AddLabelImageFilterType::Pointer addFilter =
+      typename AddLabelImageFilterType::New();
+
+    //The blank image is declared with a duplicator
+    //Should probably be done otherwise
+    typedef itk::ImageDuplicator< typename LabelImageType > DuplicatorType;
+    typename DuplicatorType::Pointer duplicator = typename DuplicatorType::New();
+    typename duplicator->SetInputImage(relabelSinuses->GetOutput());
+    duplicator->Update();
+    typename LabelImageType::Pointer sinusesImage = duplicator->GetOutput();
+    sinusesImage->FillBuffer(0);
+
+    //Get the airway label
+    int airwayLabel = LabelIt<typename T>(relabelSinuses->GetOutput(),
+                                          upperSeed,
+                                          upperSeedRadius,
+                                          bDebug);
+
+
+     //For each seed
+    for (int i = 0; i < maxillarySinusesSeeds.size(); ++i)
+      {
+      //Get the label of the maxillary sinus
+      int seedLabel = LabelIt<typename T>(relabelSinuses->GetOutput(),
+                                          maxillarySinusesSeeds[i],
+                                          maxillarySinusesSeedsRadius,
+                                          bDebug);
+      //std::cout<<"Seed Label: "<<seedLabel<<std::endl;
+
+      //The airway label MUST be different thant the seed label,
+      //Otherwise the airway would be maked out
+      if (airwayLabel == seedLabel)
+        {
+        std::cerr<<"WARNING !"<<std::endl;
+        std::cerr<< "The airway label found is equal to the label"
+                 << " found with seed #" << i << " (seed ="
+                 << maxillarySinusesSeeds[i][0]
+                 << ", " << maxillarySinusesSeeds[i][1]
+                 << ", " << maxillarySinusesSeeds[i][2]
+                 << ")" << std::endl
+                 << "Review the seed position and/or the percentage used."
+                 << std::endl;
+        if (bNoWarning)
+          {
+          return EXIT_FAILURE;
+          }
+        else
+          {
+          continue;
+          }
+        }
+
+      //Threshold out everything but the region given by the seed
+      typename LabelThresholdFilterType::Pointer thresholdOut =
+        typename LabelThresholdFilterType::New();
+      thresholdOut->SetLowerThreshold( seedLabel );
+      thresholdOut->SetUpperThreshold( seedLabel );
+      thresholdOut->SetOutsideValue( 0 );
+      thresholdOut->SetInsideValue( 1 );
+      thresholdOut->SetInput( relabelSinuses->GetOutput() );
+      thresholdOut->Update();
+
+      //Add it to the blank image
+      addFilter->SetInput1( sinusesImage );
+      addFilter->SetInput2( thresholdOut->GetOutput() );
+      addFilter->Update();
+
+      sinusesImage = addFilter->GetOutput();
+      }
+
+    if (bDebug)
+      {
+      typename WriterLabelType::Pointer writer = typename WriterLabelType::New();
+      writer->SetInput( addFilter->GetOutput() );
+      std::string filename = sDebugFolder;
+      filename += "UndesiredParts.nrrd";
+      writer->SetFileName( filename );
+
+      try
+        {
+        writer->Update();
+        }
+      catch( itk::ExceptionObject & excep )
+        {
+        std::cerr << "Exception caught !" << std::endl;
+        std::cerr << excep << std::endl;
+        }
+      }
+
+    //--
+    //-- Dilate the undesired part
+    //-- (So they approxemately are their original size)
+    //--
+
+    //Note that the erosion is very small
+    typename ThresholdingFilterType::Pointer thresholdSlighDilatation =
+      typename ThresholdingFilterType::New();
+    thresholdSlighDilatation->SetLowerThreshold( 0 );
+    thresholdSlighDilatation->SetUpperThreshold( dMaxAirwayRadius*erosionPercentage ); //Should be set ?
+    thresholdSlighDilatation->SetOutsideValue( 1 );
+    thresholdSlighDilatation->SetInsideValue( 0 );
+
+    //Using custom fast marching function
+    thresholdSlighDilatation->SetInput( FastMarchIt<typename T>(
+                                           addFilter->GetOutput(),
+                                           "Out",
+                                           dErodeDistance,
+                                           dMaxAirwayRadius));
+    thresholdSlighDilatation->Update();
+
+    if (bDebug)
+      {
+      typename WriterLabelType::Pointer writer = typename WriterLabelType::New();
+      writer->SetInput( thresholdSlighDilatation->GetOutput() );
+      std::string filename = sDebugFolder;
+      filename += "UndesiredParts_NormalSize.nrrd";
+      writer->SetFileName( filename );
+
+      try
+        {
+        writer->Update();
+        }
+      catch( itk::ExceptionObject & excep )
+        {
+        std::cerr << "Exception caught !" << std::endl;
+        std::cerr << excep << std::endl;
+        }
+      }
+
+    //--
+    //-- Mask all the undesired part from the segmentation
+    //--
+
+    typename TMaskImageFilter::Pointer substractSinusesMask
+      = typename TMaskImageFilter::New();
+    substractSinusesMask->SetMaskImage( thresholdSlighDilatation->GetOutput() );
+    substractSinusesMask->SetInput( FinalSegmentation );
+    substractSinusesMask->Update();
+
+    if (bDebug)
+      {
+      typename WriterLabelType::Pointer writer = typename WriterLabelType::New();
+      writer->SetInput( substractSinusesMask->GetOutput() );
+      std::string filename = sDebugFolder;
+      filename += "TrimmedAirway_Dirty.nrrd";
+      writer->SetFileName( filename );
+
+      try
+        {
+        writer->Update();
+        }
+      catch( itk::ExceptionObject & excep )
+        {
+        std::cerr << "Exception caught !" << std::endl;
+        std::cerr << excep << std::endl;
+        }
+      }
+
+    //--
+    //-- Clean up
+    //--
+    typename ConnectedComponentType::Pointer connectedCleanUp =
+      typename ConnectedComponentType::New();
+    typename RelabelComponentType::Pointer relabelCleanUp =
+      typename RelabelComponentType::New();
+
+    connectedCleanUp->SetInput( substractSinusesMask->GetOutput() );
+    relabelCleanUp->SetInput( connectedCleanUp->GetOutput() );
+    relabelCleanUp->SetNumberOfObjectsToPrint( 5 );
+    relabelCleanUp->Update();
+
+    nNumAirway = LabelIt<typename T>(relabelCleanUp->GetOutput(),
+                                      upperSeed,
+                                      upperSeedRadius,
+                                      bDebug);
+
+    typename FinalThresholdingFilterType::Pointer thresholdCleanUp =
+      typename FinalThresholdingFilterType::New();
+    thresholdCleanUp->SetLowerThreshold( nNumAirway );
+    thresholdCleanUp->SetUpperThreshold( nNumAirway );
+    thresholdCleanUp->SetOutsideValue( 0 );
+    thresholdCleanUp->SetInsideValue( 1 );
+    thresholdCleanUp->SetInput( relabelCleanUp->GetOutput() );
+    thresholdCleanUp->Update();
+
+    FinalSegmentation = thresholdCleanUp->GetOutput();
+    }
+
   if (bDebug)
     {
     std::cout << "Writing the final image ... " << std::endl;
@@ -1362,7 +1623,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
   //-- Write final image
   //--
   WriterLabelType::Pointer lccWriterFinal = WriterLabelType::New();
-  lccWriterFinal->SetInput( finalAirwayThreshold->GetOutput() );
+  lccWriterFinal->SetInput( FinalSegmentation );
   lccWriterFinal->SetFileName( outputImage.c_str() );
 
   try
@@ -1383,7 +1644,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
     itk::AirwaySurfaceWriter< InputImageType, LabelImageType >::New();
   surfaceWriter->SetFileName( outputGeometry.c_str() );
   surfaceWriter->SetUseFastMarching(true);
-  surfaceWriter->SetMaskImage( finalAirwayThreshold->GetOutput() );
+  surfaceWriter->SetMaskImage( FinalSegmentation );
   surfaceWriter->SetInput( originalImage );
 
   try

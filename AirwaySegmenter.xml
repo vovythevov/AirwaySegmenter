@@ -129,22 +129,40 @@
     <parameters advanced="true">
         <label>Maxillary Sinus Removal</label>
         <description><![CDATA[Advanced settings used to remove the maxillary sinuses.]]></description>
-
+        <boolean>
+            <name>bRemoveMaxillarySinuses</name>
+            <longflag>--removeMaxillarySinuses</longflag>
+            <label>Remove Maxillary Sinuses</label>
+            <default>False</default>
+            <description><![CDATA[Choose whether or not to remove the maxillary sinuses.]]></description>
+        </boolean>
         <point multiple="true" coordinateSystem="ras">
             <name>maxillarySinusesSeeds</name>
             <label>Maxillary Sinuses Seeds</label>
             <longflag>--maxillarySinusesSeed</longflag>
             <description><![CDATA[Point placed whithin the maxillary sinuses.]]></description>
-            <default>0,0,0</default>
+            <default>None</default>
         </point>
         <double>
             <name>maxillarySinusesSeedsRadius</name>
             <label>Maxillary Sinuses Seed's radius</label>
             <longflag>--maxillarySinusesRadius</longflag>
-            <default>20.0</default>
-            <minimum>5.0</minimum>
+            <default>5.0</default>
+            <minimum>0.1</minimum>
             <maximum>50.0</maximum>
             <description><![CDATA[The radius of all the maxillary sinuses seeds.]]></description>
+        </double>
+        <double>
+            <name>erosionPercentage</name>
+            <label>Erosion for the maxillary removal</label>
+            <longflag>--erosionPercentage</longflag>
+            <constraints>
+              <default>0.10</default>
+              <minimum>0</minimum>
+              <maximum>1</maximum>
+              <step>.01</step>
+            </constraints>
+            <description><![CDATA[The percentage of the erode distance used during removal of the maxillary sinuses.]]></description>
         </double>
     </parameters>
 
