@@ -54,7 +54,7 @@ AirwaySurfaceWriter<TInputImage, TMaskImage>
 ::GenerateData()
 {
   typedef itk::Image<float, 3> TFloatImage;
-  typedef itk::MaskImageFilter<TInputImage, TFloatImage, TInputImage > MaskFilterType;
+  typedef itk::MaskImageFilter< TInputImage, TFloatImage, TInputImage > MaskFilterType;
   typename MaskFilterType::Pointer maskFilter = MaskFilterType::New();
 
   //
@@ -73,8 +73,8 @@ AirwaySurfaceWriter<TInputImage, TMaskImage>
     typedef itk::ImageRegionConstIterator< TMaskImage > ConstIteratorType; 
     
     //Instantiations
-    FastMarchingFilterType::Pointer fastMarching = FastMarchingFilterType::New();
-    NodeContainer::Pointer seeds = NodeContainer::New();
+    typename FastMarchingFilterType::Pointer fastMarching = FastMarchingFilterType::New();
+    typename NodeContainer::Pointer seeds = NodeContainer::New();
     seeds->Initialize();
 
     //Nodes are created as stack variables and 
@@ -86,7 +86,7 @@ AirwaySurfaceWriter<TInputImage, TMaskImage>
     
     // loop through the output image 
     // and set all voxels to 0 seed voxels
-    ConstIteratorType it( this->m_pMaskImage, 
+    ConstIteratorType it( this->m_pMaskImage,
                           this->m_pMaskImage->GetLargestPossibleRegion() );
 
 
@@ -121,9 +121,9 @@ AirwaySurfaceWriter<TInputImage, TMaskImage>
     fastMarching->Update();
 
     //Invert the mask, so we get the inside of it, not the outside
-    typedef itk::BinaryThresholdImageFilter< TFloatImage, TFloatImage > 
+    typedef itk::BinaryThresholdImageFilter< TFloatImage, TFloatImage >
       ThresholdingFilterType;
-    ThresholdingFilterType::Pointer thresholdDilation = ThresholdingFilterType::New();
+    typename ThresholdingFilterType::Pointer thresholdDilation = ThresholdingFilterType::New();
 
     thresholdDilation->SetLowerThreshold( 0.0 ); 
     thresholdDilation->SetUpperThreshold( 1.0 );
@@ -142,9 +142,11 @@ AirwaySurfaceWriter<TInputImage, TMaskImage>
     structuringElement.SetRadius(1);
     structuringElement.CreateStructuringElement();
 
-    typedef itk::BinaryDilateImageFilter <TInputImage, TFloatImage, TStructuringElement>
+    typedef itk::BinaryDilateImageFilter <TInputImage,
+                                          TFloatImage,
+                                          TStructuringElement>
       BinaryDilateImageFilterType;
-    BinaryDilateImageFilterType::Pointer dilateFilter 
+    typename BinaryDilateImageFilterType::Pointer dilateFilter
       = BinaryDilateImageFilterType::New();
     dilateFilter->SetDilateValue(1);
     dilateFilter->SetInput(this->m_pMaskImage);
@@ -159,7 +161,7 @@ AirwaySurfaceWriter<TInputImage, TMaskImage>
   //
   
   maskFilter->SetInput(this->GetInput());
-  maskFilter->SetOutsideValue(std::numeric_limits<typename InputPixelType>::max());
+  maskFilter->SetOutsideValue(std::numeric_limits<InputPixelType>::max());
   maskFilter->Update();
 
   //
@@ -179,7 +181,7 @@ AirwaySurfaceWriter<TInputImage, TMaskImage>
   
   //Conversion to VTK
   typedef itk::ImageToVTKImageFilter<TInputImage> adaptatorFromITKtoVTKType;
-  adaptatorFromITKtoVTKType::Pointer toVTKFilter = adaptatorFromITKtoVTKType::New();
+  typename adaptatorFromITKtoVTKType::Pointer toVTKFilter = adaptatorFromITKtoVTKType::New();
   toVTKFilter->SetInput( otsuThreshold->GetInput() );
   toVTKFilter->Update();
 

@@ -104,20 +104,21 @@ int outputAllSettings(int argc, char* argv[])
 // its parameters are given correctly
 
 template<class T> itk::Image<float, 3>::Pointer
-  FastMarchIt(typename itk::Image<typename T, 3>::Pointer image, 
+  FastMarchIt(typename itk::Image<T, 3>::Pointer image,
               std::string type, double erodedDistance, double airwayRadius)
 {
   //Necessaries typedefs
   typedef itk::Image<float, 3> FloatImageType;
-  typedef itk::Image<typename T, 3> LabelImageType;
-  typedef itk::FastMarchingImageFilter< FloatImageType, FloatImageType >  FastMarchingFilterType;
-  typedef FastMarchingFilterType::NodeContainer  NodeContainer;
-  typedef FastMarchingFilterType::NodeType NodeType;
-  typedef itk::ImageRegionConstIterator< LabelImageType > ConstIteratorType; 
+  typedef itk::Image<T, 3> LabelImageType;
+  typedef itk::FastMarchingImageFilter<FloatImageType, FloatImageType>  FastMarchingFilterType;
+  typedef typename FastMarchingFilterType::NodeContainer  NodeContainer;
+  typedef typename FastMarchingFilterType::NodeType NodeType;
+  typedef itk::ImageRegionConstIterator<LabelImageType>  ConstIteratorType;
 
   //Instantiations
-  FastMarchingFilterType::Pointer fastMarching = FastMarchingFilterType::New();
-  NodeContainer::Pointer seeds = NodeContainer::New();
+  typename FastMarchingFilterType::Pointer fastMarching =
+    FastMarchingFilterType::New();
+  typename NodeContainer::Pointer seeds = NodeContainer::New();
   seeds->Initialize();
 
   //Nodes are created as stack variables and 
@@ -176,7 +177,7 @@ template<class T> itk::Image<float, 3>::Pointer
   catch(itk::ExceptionObject & excep )
     {
     std::cerr << "Exception caught !" << std::endl;
-    std::cerr << excep << std::endl; 
+    std::cerr << excep << std::endl;
     }
 
   return fastMarching->GetOutput();
@@ -186,14 +187,14 @@ template<class T> itk::Image<float, 3>::Pointer
 //the ball center and return the most represented label
 
 template<class T> int 
-  LabelIt(typename itk::Image<typename T, 3>::Pointer image,
+  LabelIt(typename itk::Image<T, 3>::Pointer image,
           std::vector<float> ballCenter, double radius, bool printLabels)
 {
-  typedef itk::Image<typename T, 3> TImage;
-  typedef itk::Image<typename T, 3>::SizeType TSize;
-  typedef itk::Image<typename T, 3>::SpacingType TSpacing;
-  typedef itk::Image<typename T, 3>::PointType TOrigin;
-  typedef itk::Image<typename T, 3>::IndexType TIndex;
+  typedef itk::Image<T, 3> TImage;
+  typedef typename itk::Image<T, 3>::SizeType TSize;
+  typedef typename itk::Image<T, 3>::SpacingType TSpacing;
+  typedef typename itk::Image<T, 3>::PointType TOrigin;
+  typedef typename itk::Image<T, 3>::IndexType TIndex;
 
   TOrigin imageOrigin = image->GetOrigin();
   TSpacing imageSpacing = image->GetSpacing();
@@ -294,21 +295,21 @@ template<class T> int DoIt(int argc, char* argv[], T)
 
   const unsigned char DIMENSION = 3;
 
-  typedef itk::Image< TPixelType,DIMENSION> InputImageType;
-  typedef itk::Image< TPixelType,DIMENSION> OutputImageType;
-  typedef itk::Image< TLabelPixelType,DIMENSION> LabelImageType;
-  typedef itk::Image< TFloatType,DIMENSION> FloatImageType;
-  typedef itk::Image< unsigned char,DIMENSION> UCharImageType;
+  typedef itk::Image<TPixelType, DIMENSION> InputImageType;
+  typedef itk::Image<TPixelType, DIMENSION> OutputImageType;
+  typedef itk::Image<TLabelPixelType, DIMENSION> LabelImageType;
+  typedef itk::Image<TFloatType, DIMENSION> FloatImageType;
+  typedef itk::Image<unsigned char, DIMENSION> UCharImageType;
 
-  typedef itk::ImageFileReader< InputImageType > ReaderType;
-  typedef itk::ImageFileReader< LabelImageType > ReaderLabelType;
-  typedef itk::ImageFileWriter< OutputImageType > WriterType;
-  typedef itk::ImageFileWriter< LabelImageType > WriterLabelType;
+  typedef itk::ImageFileReader<InputImageType> ReaderType;
+  typedef itk::ImageFileReader<LabelImageType> ReaderLabelType;
+  typedef itk::ImageFileWriter<OutputImageType> WriterType;
+  typedef itk::ImageFileWriter<LabelImageType> WriterLabelType;
 
-  typedef LabelImageType::SizeType TSize;
-  typedef LabelImageType::SpacingType TSpacing;
-  typedef LabelImageType::PointType TOrigin;
-  typedef LabelImageType::IndexType TIndex;
+  typedef typename LabelImageType::SizeType TSize;
+  typedef typename LabelImageType::SpacingType TSpacing;
+  typedef typename LabelImageType::PointType TOrigin;
+  typedef typename LabelImageType::IndexType TIndex;
 
   //--
   //-- Parsing the input
@@ -331,7 +332,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
     }
 
   // read the input image
-  ReaderType::Pointer reader = ReaderType::New();
+  typename ReaderType::Pointer reader = ReaderType::New();
   reader->SetFileName( inputImage );
 
   try
@@ -340,18 +341,19 @@ template<class T> int DoIt(int argc, char* argv[], T)
     }
   catch ( itk::ExceptionObject & excep )
     {
-    std::cerr << "Exception caught !" << std::endl; std::cerr << excep << std::endl; 
+    std::cerr << "Exception caught !" << std::endl;
+    std::cerr << excep << std::endl;
     }
 
 
   //--
   //-- Automatic Resampling to RAI
   //--
-  InputImageType::Pointer originalImage = reader->GetOutput();
-  InputImageType::DirectionType originalImageDirection = originalImage->GetDirection();
+  typename InputImageType::Pointer originalImage = reader->GetOutput();
+  typename InputImageType::DirectionType originalImageDirection = originalImage->GetDirection();
 
   itk::SpatialOrientationAdapter adapter;
-  InputImageType::DirectionType RAIDirection =
+  typename InputImageType::DirectionType RAIDirection =
     adapter.ToDirectionCosines(itk::SpatialOrientation::ITK_COORDINATE_ORIENTATION_RAI);
 
   bool shouldConvert = false;
@@ -368,7 +370,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
     }
 
   typedef itk::ResampleImageFilter<InputImageType, InputImageType> ResampleImageFilterType;
-  ResampleImageFilterType::Pointer resampleFilter = ResampleImageFilterType::New();
+  typename ResampleImageFilterType::Pointer resampleFilter = ResampleImageFilterType::New();
 
   if (shouldConvert)
     {
@@ -387,7 +389,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
   //Write RAI Image if asked to
   if (bRAIImage)
     {
-    WriterType::Pointer writer = WriterType::New();
+    typename WriterType::Pointer writer = WriterType::New();
     writer->SetInput( originalImage);
     writer->SetFileName( sRAIImagePath.c_str() );
 
@@ -406,8 +408,9 @@ template<class T> int DoIt(int argc, char* argv[], T)
   //-- Otsu thresholding first
   //--
 
-  typedef itk::OtsuThresholdImageFilter< InputImageType, LabelImageType > OtsuThresholdFilterType;
-  OtsuThresholdFilterType::Pointer otsuThresholdFilter = OtsuThresholdFilterType::New();
+  typedef itk::OtsuThresholdImageFilter<InputImageType, LabelImageType > OtsuThresholdFilterType;
+  typename OtsuThresholdFilterType::Pointer otsuThresholdFilter =
+    OtsuThresholdFilterType::New();
 
   otsuThresholdFilter->SetInsideValue( 0 );
   otsuThresholdFilter->SetOutsideValue( 1 );
@@ -416,7 +419,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
 
   if (bDebug)
     {
-    WriterLabelType::Pointer writer = WriterLabelType::New();
+    typename WriterLabelType::Pointer writer = WriterLabelType::New();
     writer->SetInput( otsuThresholdFilter->GetOutput() );
     std::string filename = sDebugFolder;
     filename += "/otsu.nhdr";
@@ -436,8 +439,8 @@ template<class T> int DoIt(int argc, char* argv[], T)
   //-- Dilatation
   //--
 
-  typedef itk::BinaryThresholdImageFilter< FloatImageType, LabelImageType > ThresholdingFilterType;
-  ThresholdingFilterType::Pointer thresholdDilation = ThresholdingFilterType::New();
+  typedef itk::BinaryThresholdImageFilter<FloatImageType, LabelImageType > ThresholdingFilterType;
+  typename ThresholdingFilterType::Pointer thresholdDilation = ThresholdingFilterType::New();
 
   thresholdDilation->SetLowerThreshold( 0.0 );
   thresholdDilation->SetUpperThreshold( dMaxAirwayRadius );
@@ -445,7 +448,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
   thresholdDilation->SetInsideValue( 1 );
 
   //Using custom fast marching function
-  thresholdDilation->SetInput( FastMarchIt<typename T>(
+  thresholdDilation->SetInput( FastMarchIt<T>(
                                 otsuThresholdFilter->GetOutput(),
                                 "Out",
                                 dErodeDistance, 
@@ -456,7 +459,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
   // Now write this for test purposes
   if (bDebug)
     {
-    WriterLabelType::Pointer writer = WriterLabelType::New();
+    typename WriterLabelType::Pointer writer = WriterLabelType::New();
     writer->SetInput( thresholdDilation->GetOutput() );
     std::string filename = sDebugFolder;
     filename += "/fmt-out.nhdr";
@@ -476,14 +479,14 @@ template<class T> int DoIt(int argc, char* argv[], T)
   //-- Erosion (Thus creating a closing)
   //--
 
-  ThresholdingFilterType::Pointer thresholdClosing = ThresholdingFilterType::New();
+  typename ThresholdingFilterType::Pointer thresholdClosing = ThresholdingFilterType::New();
 
   thresholdClosing->SetLowerThreshold( 0.0 ); 
   thresholdClosing->SetUpperThreshold( dMaxAirwayRadius );
   thresholdClosing->SetOutsideValue( 1 ); 
   thresholdClosing->SetInsideValue( 0 );
 
-  thresholdClosing->SetInput( FastMarchIt<typename T>(
+  thresholdClosing->SetInput( FastMarchIt<T>(
                                 thresholdDilation->GetOutput(),
                                 "In",
                                 dErodeDistance,
@@ -493,7 +496,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
   // Now write this for test purposes
   if (bDebug)
     {
-    WriterLabelType::Pointer writer = WriterLabelType::New();
+    typename WriterLabelType::Pointer writer = WriterLabelType::New();
     writer->SetInput( thresholdClosing->GetOutput() );
     std::string filename = sDebugFolder;
     filename += "/fmtIn-out.nhdr";
@@ -513,10 +516,12 @@ template<class T> int DoIt(int argc, char* argv[], T)
   //-- Difference between closed image and ostu-threshold of the original one
   //--
 
-  typedef itk::AbsoluteValueDifferenceImageFilter< LabelImageType, LabelImageType, LabelImageType >
+  typedef itk::AbsoluteValueDifferenceImageFilter<LabelImageType,
+                                                  LabelImageType,
+                                                  LabelImageType >
     TAbsoluteValueDifferenceFilter;
-  TAbsoluteValueDifferenceFilter::Pointer absoluteValueDifferenceFilter 
-    = TAbsoluteValueDifferenceFilter::New();
+  typename TAbsoluteValueDifferenceFilter::Pointer absoluteValueDifferenceFilter
+   = TAbsoluteValueDifferenceFilter::New();
 
   absoluteValueDifferenceFilter->SetInput1( otsuThresholdFilter->GetOutput() );
   absoluteValueDifferenceFilter->SetInput2( thresholdClosing->GetOutput() );
@@ -524,7 +529,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
 
   if (bDebug)
     {
-    WriterLabelType::Pointer writer = WriterLabelType::New();
+    typename WriterLabelType::Pointer writer = WriterLabelType::New();
     writer->SetInput( absoluteValueDifferenceFilter->GetOutput() );
     std::string filename = sDebugFolder;
     filename += "/avd.nhdr";
@@ -549,7 +554,8 @@ template<class T> int DoIt(int argc, char* argv[], T)
   // We can get this simply by taking a
   // slightly different threshold for the marching in case
 
-  ThresholdingFilterType::Pointer thresholdDifference = ThresholdingFilterType::New();
+  typename ThresholdingFilterType::Pointer thresholdDifference =
+    ThresholdingFilterType::New();
 
   thresholdDifference->SetLowerThreshold( 0.0 );
   thresholdDifference->SetUpperThreshold( dMaxAirwayRadius+dErodeDistance );
@@ -561,9 +567,11 @@ template<class T> int DoIt(int argc, char* argv[], T)
   thresholdDifference->SetInput( thresholdClosing->GetInput() );
 
   // now do the masking
-  typedef itk::MaskImageFilter< LabelImageType, LabelImageType, LabelImageType > TMaskImageFilter;
-  TMaskImageFilter::Pointer absoluteValueDifferenceFilterMasked 
-    = TMaskImageFilter::New();
+  typedef itk::MaskImageFilter<LabelImageType,
+                               LabelImageType,
+                               LabelImageType > TMaskImageFilter;
+  typename TMaskImageFilter::Pointer absoluteValueDifferenceFilterMasked =
+    TMaskImageFilter::New();
 
   absoluteValueDifferenceFilterMasked->SetInput1(
     absoluteValueDifferenceFilter->GetOutput() );
@@ -583,13 +591,14 @@ template<class T> int DoIt(int argc, char* argv[], T)
     std::cout << "Extracting largest connected component ... ";
     }
 
-  typedef itk::ConnectedComponentImageFilter< LabelImageType, LabelImageType > ConnectedComponentType;
-  typedef itk::RelabelComponentImageFilter< LabelImageType, LabelImageType > RelabelComponentType;
-  typedef itk::BinaryThresholdImageFilter< LabelImageType, LabelImageType > FinalThresholdingFilterType;
+  typedef itk::ConnectedComponentImageFilter<LabelImageType, LabelImageType > ConnectedComponentType;
+  typedef itk::RelabelComponentImageFilter<LabelImageType, LabelImageType > RelabelComponentType;
+  typedef itk::BinaryThresholdImageFilter<LabelImageType, LabelImageType > FinalThresholdingFilterType;
 
-  ConnectedComponentType::Pointer connected = ConnectedComponentType::New();
-  RelabelComponentType::Pointer relabel = RelabelComponentType::New();
-  FinalThresholdingFilterType::Pointer largestComponentThreshold = FinalThresholdingFilterType::New();
+  typename ConnectedComponentType::Pointer connected = ConnectedComponentType::New();
+  typename RelabelComponentType::Pointer relabel = RelabelComponentType::New();
+  typename FinalThresholdingFilterType::Pointer largestComponentThreshold =
+    FinalThresholdingFilterType::New();
 
   // Label the components in the image and relabel them so that object
   // numbers increase as the size of the objects decrease.
@@ -601,7 +610,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
   int componentNumber = 0;
   if (iComponent <= 0)
     {
-    componentNumber = LabelIt<typename T>(relabel->GetOutput(),
+    componentNumber = LabelIt<T>(relabel->GetOutput(),
                                             lowerSeed,
                                             lowerSeedRadius,
                                             bDebug);
@@ -622,7 +631,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
 
   if (bDebug)
     {
-    WriterLabelType::Pointer lccWriter = WriterLabelType::New();
+    typename WriterLabelType::Pointer lccWriter = WriterLabelType::New();
     lccWriter->SetInput( largestComponentThreshold->GetOutput() );
     std::string filename = sDebugFolder;
     filename += "/lcc.nhdr";
@@ -647,9 +656,10 @@ template<class T> int DoIt(int argc, char* argv[], T)
 
   // For this, we need to make it first a little bit bigger
 
-  ThresholdingFilterType::Pointer thresholdExtendedSegmentation = ThresholdingFilterType::New();
+  typename ThresholdingFilterType::Pointer thresholdExtendedSegmentation =
+    ThresholdingFilterType::New();
 
-  thresholdExtendedSegmentation->SetInput( FastMarchIt<typename T>(
+  thresholdExtendedSegmentation->SetInput( FastMarchIt<T>(
                                               largestComponentThreshold->GetOutput(),
                                               "Out", 
                                               dErodeDistance,
@@ -670,7 +680,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
 
   if (bDebug)
     {
-    WriterLabelType::Pointer writer = WriterLabelType::New();
+    typename WriterLabelType::Pointer writer = WriterLabelType::New();
     writer->SetInput( thresholdExtendedSegmentation->GetOutput() );
     std::string filename = sDebugFolder;
     filename += "/seg-extended.nhdr";
@@ -691,9 +701,11 @@ template<class T> int DoIt(int argc, char* argv[], T)
   // but restrict the statistics to the currently obtained area 
   //(custom ostu-threshold filter)
 
-  typedef itk::MaskedOtsuThresholdImageFilter< InputImageType, LabelImageType, LabelImageType >
+  typedef itk::MaskedOtsuThresholdImageFilter<InputImageType,
+                                              LabelImageType,
+                                              LabelImageType >
     MaskedOtsuThresholdFilterType;
-  MaskedOtsuThresholdFilterType::Pointer maskedOtsuThresholdFilter =
+  typename MaskedOtsuThresholdFilterType::Pointer maskedOtsuThresholdFilter =
     MaskedOtsuThresholdFilterType::New();
 
   // TODO: not sure about these inside/outside settings, check!!
@@ -710,7 +722,8 @@ template<class T> int DoIt(int argc, char* argv[], T)
 
   if (bDebug)
     {
-    WriterLabelType::Pointer labelWriterMaskedOtsu = WriterLabelType::New();
+    typename WriterLabelType::Pointer labelWriterMaskedOtsu =
+      WriterLabelType::New();
     labelWriterMaskedOtsu->SetInput( maskedOtsuThresholdFilter->GetOutput() );
     std::string filename = sDebugFolder;
     filename += "/otst-out-masked.nhdr";
@@ -736,14 +749,14 @@ template<class T> int DoIt(int argc, char* argv[], T)
     std::cout << " mask it again and extract the largest component ... " << std::endl;
     }
 
-  TMaskImageFilter::Pointer maskedOtsu = TMaskImageFilter::New();
+  typename TMaskImageFilter::Pointer maskedOtsu = TMaskImageFilter::New();
 
   maskedOtsu->SetInput1( maskedOtsuThresholdFilter->GetOutput() );
   maskedOtsu->SetInput2( thresholdDifference->GetOutput() ); // second input is the mask
 
   if (bDebug)
     {
-    WriterLabelType::Pointer writer = WriterLabelType::New();
+    typename WriterLabelType::Pointer writer = WriterLabelType::New();
     writer->SetInput( maskedOtsu->GetOutput() );
     std::string filename = sDebugFolder;
     filename += "/maskedOtsu-out_second.nhdr";
@@ -781,9 +794,12 @@ template<class T> int DoIt(int argc, char* argv[], T)
     std::cout << "Extracting final largest connected component ... ";
     }
 
-  ConnectedComponentType::Pointer connectedFinal = ConnectedComponentType::New();
-  RelabelComponentType::Pointer relabelFinal = RelabelComponentType::New();
-  FinalThresholdingFilterType::Pointer finalThreshold = FinalThresholdingFilterType::New();
+  typename ConnectedComponentType::Pointer connectedFinal =
+    ConnectedComponentType::New();
+  typename RelabelComponentType::Pointer relabelFinal =
+    RelabelComponentType::New();
+  typename FinalThresholdingFilterType::Pointer finalThreshold =
+    FinalThresholdingFilterType::New();
 
   // Label the components in the image and relabel them so that object
   // numbers increase as the size of the objects decrease.
@@ -794,7 +810,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
 
   if (iComponent <= 0)
     {
-    componentNumber = LabelIt<typename T>(relabelFinal->GetOutput(),
+    componentNumber = LabelIt<T>(relabelFinal->GetOutput(),
                             lowerSeed,
                             lowerSeedRadius,
                             bDebug);
@@ -815,7 +831,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
 
   if (bDebug)
     {
-    WriterLabelType::Pointer writer = WriterLabelType::New();
+    typename WriterLabelType::Pointer writer = WriterLabelType::New();
     writer->SetInput( finalThreshold->GetOutput() );
     std::string filename = sDebugFolder;
     filename += "/airway-with-lung.nrrd";
@@ -904,14 +920,14 @@ template<class T> int DoIt(int argc, char* argv[], T)
   //--
   //--
 
-  InputImageType::Pointer imageBranch = InputImageType::New();
-  InputImageType::SizeType sizeBranch;
+  typename InputImageType::Pointer imageBranch = InputImageType::New();
+  typename InputImageType::SizeType sizeBranch;
   sizeBranch[0] = ballRegion[3]-ballRegion[0]+1;
   sizeBranch[1] = ballRegion[4]-ballRegion[1]+1;
   sizeBranch[2] = ballRegion[5]-ballRegion[2]+1;
-  InputImageType::IndexType startBranch;
+  typename InputImageType::IndexType startBranch;
   startBranch.Fill(0);
-  InputImageType::RegionType regionBranch;
+  typename InputImageType::RegionType regionBranch;
   regionBranch.SetSize( sizeBranch );
   regionBranch.SetIndex( startBranch );
   imageBranch->SetRegions( regionBranch );
@@ -967,8 +983,10 @@ template<class T> int DoIt(int argc, char* argv[], T)
 
   //First with simple threshold
 
-  ConnectedComponentType::Pointer connectedBranch = ConnectedComponentType::New();
-  RelabelComponentType::Pointer relabelBranch = RelabelComponentType::New();
+  typename ConnectedComponentType::Pointer connectedBranch =
+    ConnectedComponentType::New();
+  typename RelabelComponentType::Pointer relabelBranch =
+    RelabelComponentType::New();
 
   connectedBranch->SetInput( imageBranch );
   connectedBranch->Update();
@@ -979,7 +997,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
   //Get geometry statistics
 
   typedef itk::LabelGeometryImageFilter<LabelImageType> LabelGeometryImageFilterType;
-  LabelGeometryImageFilterType::Pointer labelBranchGeometry =
+  typename LabelGeometryImageFilterType::Pointer labelBranchGeometry =
     LabelGeometryImageFilterType::New();
   labelBranchGeometry->SetInput( relabelBranch->GetOutput() );
   labelBranchGeometry->CalculateOrientedBoundingBoxOn();
@@ -1007,7 +1025,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
 
     for( int nNumParts=1; nNumParts<=nBranchParts; nNumParts++ )
       {
-      LabelGeometryImageFilterType::BoundingBoxType boundingBox =
+      typename LabelGeometryImageFilterType::BoundingBoxType boundingBox =
          labelBranchGeometry->GetBoundingBox( nNumParts );
       double xTmp = ( boundingBox[0] + boundingBox[1] ) / 2.0 - dBallIndexX;
       double yTmp = ( boundingBox[2] + boundingBox[3] ) / 2.0 - dBallIndexY;
@@ -1040,7 +1058,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
 
   //Get the biggest element (i.e. lung + airway)
 
-  FinalThresholdingFilterType::Pointer branchThreshold = 
+  typename FinalThresholdingFilterType::Pointer branchThreshold =
     FinalThresholdingFilterType::New();
   branchThreshold->SetInput( relabelBranch->GetOutput() );
   branchThreshold->SetLowerThreshold( nBranchId );
@@ -1051,7 +1069,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
 
   if (bDebug)
     {
-    WriterLabelType::Pointer writer = WriterLabelType::New();
+    typename WriterLabelType::Pointer writer = WriterLabelType::New();
     writer->SetInput( branchThreshold->GetOutput() );
     std::string filename = sDebugFolder;
     filename += "/FinalThresholdNoBranch.nrrd";
@@ -1066,8 +1084,10 @@ template<class T> int DoIt(int argc, char* argv[], T)
       }
     }
 
-  ConnectedComponentType::Pointer connectedFinalWithoutLung = ConnectedComponentType::New();
-  RelabelComponentType::Pointer relabelFinalWithoutLung = RelabelComponentType::New();
+  typename ConnectedComponentType::Pointer connectedFinalWithoutLung =
+    ConnectedComponentType::New();
+  typename RelabelComponentType::Pointer relabelFinalWithoutLung =
+    RelabelComponentType::New();
 
   connectedFinalWithoutLung->SetInput( finalThreshold->GetOutput() );
   relabelFinalWithoutLung->SetInput( connectedFinalWithoutLung->GetOutput() );
@@ -1076,7 +1096,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
 
   if (bDebug)
     {
-    WriterLabelType::Pointer writer = WriterLabelType::New();
+    typename WriterLabelType::Pointer writer = WriterLabelType::New();
     writer->SetInput( relabelFinalWithoutLung->GetOutput() );
     std::string filename = sDebugFolder;
     filename += "/relabelFinalWithLung.nrrd";
@@ -1135,7 +1155,8 @@ template<class T> int DoIt(int argc, char* argv[], T)
     }
 
   //Now apply an otsu threshold on it
-  typename OtsuThresholdFilterType::Pointer otsuThresholdBranchFilter = OtsuThresholdFilterType::New();
+  typename OtsuThresholdFilterType::Pointer otsuThresholdBranchFilter =
+    OtsuThresholdFilterType::New();
   otsuThresholdBranchFilter->SetInsideValue(1);
   otsuThresholdBranchFilter->SetOutsideValue(0);
   otsuThresholdBranchFilter->SetInput( imageBranch );
@@ -1143,7 +1164,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
 
   if (bDebug)
     {
-    WriterLabelType::Pointer writer = WriterLabelType::New();
+    typename WriterLabelType::Pointer writer = WriterLabelType::New();
     writer->SetInput( relabelFinalWithoutLung->GetOutput() );
     std::string filename = sDebugFolder;
     filename += "otsuBranchCleaning.nrrd";
@@ -1195,7 +1216,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
 
   if (bDebug)
     {
-    WriterLabelType::Pointer writer = WriterLabelType::New();
+    typename WriterLabelType::Pointer writer = WriterLabelType::New();
     writer->SetInput( relabelFinalWithoutLung->GetOutput() );
     std::string filename = sDebugFolder;
     filename += "CleanedBallRegion.nrrd";
@@ -1211,8 +1232,10 @@ template<class T> int DoIt(int argc, char* argv[], T)
     }
 
   //Of course, get rid of any small residual effects
-  typename ConnectedComponentType::Pointer connectedCleanedBranch = ConnectedComponentType::New();
-  typename RelabelComponentType::Pointer relabelCleanedBranch = RelabelComponentType::New();
+  typename ConnectedComponentType::Pointer connectedCleanedBranch =
+    ConnectedComponentType::New();
+  typename RelabelComponentType::Pointer relabelCleanedBranch =
+    RelabelComponentType::New();
 
   connectedCleanedBranch->SetInput( imageBranch );
   connectedCleanedBranch->Update();
@@ -1220,7 +1243,8 @@ template<class T> int DoIt(int argc, char* argv[], T)
   relabelCleanedBranch->SetNumberOfObjectsToPrint( 5 );
   relabelCleanedBranch->Update();
 
-  typename FinalThresholdingFilterType::Pointer cleanedBranchThreshold = FinalThresholdingFilterType::New();
+  typename FinalThresholdingFilterType::Pointer cleanedBranchThreshold =
+    FinalThresholdingFilterType::New();
   cleanedBranchThreshold->SetInput( relabelCleanedBranch->GetOutput() );
   cleanedBranchThreshold->SetLowerThreshold( 1 );
   cleanedBranchThreshold->SetUpperThreshold( 1 );
@@ -1240,7 +1264,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
   int nNumAirway = 0;
   if (iComponent <= 0)
     {
-    nNumAirway = LabelIt<typename T>(relabelFinalWithoutLung->GetOutput(),
+    nNumAirway = LabelIt<T>(relabelFinalWithoutLung->GetOutput(),
                             upperSeed,
                             upperSeedRadius,
                             bDebug);
@@ -1279,7 +1303,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
               << " is picked as the airway." << std::endl;
     }
 
-  FinalThresholdingFilterType::Pointer finalAirwayThreshold = 
+  typename FinalThresholdingFilterType::Pointer finalAirwayThreshold =
     FinalThresholdingFilterType::New();
   finalAirwayThreshold->SetInput( relabelFinalWithoutLung->GetOutput() );
   finalAirwayThreshold->SetLowerThreshold( nNumAirway ); 
@@ -1290,7 +1314,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
 
   if (bDebug)
     {
-    WriterLabelType::Pointer writer = WriterLabelType::New();
+    typename WriterLabelType::Pointer writer = WriterLabelType::New();
     writer->SetInput( finalAirwayThreshold->GetOutput() );
     std::string filename = sDebugFolder;
     filename += "/final_threshold.nrrd";
@@ -1353,7 +1377,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
   //--
   //-- Write final image
   //--
-  WriterLabelType::Pointer lccWriterFinal = WriterLabelType::New();
+  typename WriterLabelType::Pointer lccWriterFinal = WriterLabelType::New();
   lccWriterFinal->SetInput( finalAirwayThreshold->GetOutput() );
   lccWriterFinal->SetFileName( outputImage.c_str() );
 
@@ -1371,8 +1395,8 @@ template<class T> int DoIt(int argc, char* argv[], T)
   //-- Write Surface
   //--
 
-  itk::AirwaySurfaceWriter< InputImageType, LabelImageType >::Pointer surfaceWriter=
-    itk::AirwaySurfaceWriter< InputImageType, LabelImageType >::New();
+  typename itk::AirwaySurfaceWriter<InputImageType, LabelImageType>::Pointer surfaceWriter=
+    itk::AirwaySurfaceWriter<InputImageType, LabelImageType>::New();
   surfaceWriter->SetFileName( outputGeometry.c_str() );
   surfaceWriter->SetUseFastMarching(true);
   surfaceWriter->SetMaskImage( finalAirwayThreshold->GetOutput() );
