@@ -70,7 +70,7 @@ public:
   typedef typename TInputImage::IndexType   InputIndexType;
   typedef typename TInputImage::RegionType  InputImageRegionType;
 
-  void SetMaskImage( typename TMaskImage::ConstPointer pmask )
+  void SetMaskImage( typename TMaskImage::Pointer pmask )
     {
     m_pMaskImage = pmask;
     };
