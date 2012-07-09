@@ -1375,14 +1375,14 @@ template<class T> int DoIt(int argc, char* argv[], T)
 
     //Note that the erosion is very small
     typename ThresholdingFilterType::Pointer thresholdSlightErosion =
-      typename ThresholdingFilterType::New();
+      ThresholdingFilterType::New();
     thresholdSlightErosion->SetLowerThreshold( dMaxAirwayRadius*erosionPercentage ); //Should be set ?
     thresholdSlightErosion->SetUpperThreshold( dMaxAirwayRadius );
     thresholdSlightErosion->SetOutsideValue( 0 );
     thresholdSlightErosion->SetInsideValue( 1 );
 
     //Using custom fast marching function
-    thresholdSlightErosion->SetInput( FastMarchIt<typename T>(
+    thresholdSlightErosion->SetInput( FastMarchIt<T>(
                                          FinalSegmentation,
                                          "In",
                                          dErodeDistance,
@@ -1391,7 +1391,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
 
     if (bDebug)
       {
-      typename WriterLabelType::Pointer writer = typename WriterLabelType::New();
+      typename WriterLabelType::Pointer writer = WriterLabelType::New();
       writer->SetInput( thresholdSlightErosion->GetOutput() );
       std::string filename = sDebugFolder;
       filename += "SlightlyEroderSegmentation.nrrd";
@@ -1414,8 +1414,8 @@ template<class T> int DoIt(int argc, char* argv[], T)
     //--
 
     //First label the different part that have been separated by the erosion
-    typename ConnectedComponentType::Pointer connectedSinuses = typename ConnectedComponentType::New();
-    typename RelabelComponentType::Pointer relabelSinuses = typename RelabelComponentType::New();
+    typename ConnectedComponentType::Pointer connectedSinuses = ConnectedComponentType::New();
+    typename RelabelComponentType::Pointer relabelSinuses = RelabelComponentType::New();
 
     connectedSinuses->SetInput( thresholdSlightErosion->GetOutput() );
     relabelSinuses->SetInput( connectedSinuses->GetOutput() );
@@ -1423,36 +1423,36 @@ template<class T> int DoIt(int argc, char* argv[], T)
     relabelSinuses->Update();
 
     //Declare filters and a blank image
-    typedef typename itk::AddImageFilter< typename LabelImageType > AddLabelImageFilterType;
-    typedef itk::BinaryThresholdImageFilter<typename LabelImageType, typename LabelImageType >
+    typedef typename itk::AddImageFilter< LabelImageType > AddLabelImageFilterType;
+    typedef itk::BinaryThresholdImageFilter<LabelImageType, LabelImageType >
       LabelThresholdFilterType;
     typename AddLabelImageFilterType::Pointer addFilter =
-      typename AddLabelImageFilterType::New();
+      AddLabelImageFilterType::New();
 
     //The blank image is declared with a duplicator
     //Should probably be done otherwise
-    typedef itk::ImageDuplicator< typename LabelImageType > DuplicatorType;
-    typename DuplicatorType::Pointer duplicator = typename DuplicatorType::New();
-    typename duplicator->SetInputImage(relabelSinuses->GetOutput());
+    typedef itk::ImageDuplicator< LabelImageType > DuplicatorType;
+    typename DuplicatorType::Pointer duplicator = DuplicatorType::New();
+    duplicator->SetInputImage(relabelSinuses->GetOutput());
     duplicator->Update();
     typename LabelImageType::Pointer sinusesImage = duplicator->GetOutput();
     sinusesImage->FillBuffer(0);
 
     //Get the airway label
-    int airwayLabel = LabelIt<typename T>(relabelSinuses->GetOutput(),
-                                          upperSeed,
-                                          upperSeedRadius,
-                                          bDebug);
+    int airwayLabel = LabelIt<T>(relabelSinuses->GetOutput(),
+                                  upperSeed,
+                                  upperSeedRadius,
+                                  bDebug);
 
 
      //For each seed
     for (int i = 0; i < maxillarySinusesSeeds.size(); ++i)
       {
       //Get the label of the maxillary sinus
-      int seedLabel = LabelIt<typename T>(relabelSinuses->GetOutput(),
-                                          maxillarySinusesSeeds[i],
-                                          maxillarySinusesSeedsRadius,
-                                          bDebug);
+      int seedLabel = LabelIt<T>(relabelSinuses->GetOutput(),
+                                  maxillarySinusesSeeds[i],
+                                  maxillarySinusesSeedsRadius,
+                                  bDebug);
       //std::cout<<"Seed Label: "<<seedLabel<<std::endl;
 
       //The airway label MUST be different thant the seed label,
@@ -1480,7 +1480,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
 
       //Threshold out everything but the region given by the seed
       typename LabelThresholdFilterType::Pointer thresholdOut =
-        typename LabelThresholdFilterType::New();
+        LabelThresholdFilterType::New();
       thresholdOut->SetLowerThreshold( seedLabel );
       thresholdOut->SetUpperThreshold( seedLabel );
       thresholdOut->SetOutsideValue( 0 );
@@ -1498,7 +1498,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
 
     if (bDebug)
       {
-      typename WriterLabelType::Pointer writer = typename WriterLabelType::New();
+      typename WriterLabelType::Pointer writer = WriterLabelType::New();
       writer->SetInput( addFilter->GetOutput() );
       std::string filename = sDebugFolder;
       filename += "UndesiredParts.nrrd";
@@ -1522,14 +1522,14 @@ template<class T> int DoIt(int argc, char* argv[], T)
 
     //Note that the erosion is very small
     typename ThresholdingFilterType::Pointer thresholdSlighDilatation =
-      typename ThresholdingFilterType::New();
+      ThresholdingFilterType::New();
     thresholdSlighDilatation->SetLowerThreshold( 0 );
     thresholdSlighDilatation->SetUpperThreshold( dMaxAirwayRadius*erosionPercentage ); //Should be set ?
     thresholdSlighDilatation->SetOutsideValue( 1 );
     thresholdSlighDilatation->SetInsideValue( 0 );
 
     //Using custom fast marching function
-    thresholdSlighDilatation->SetInput( FastMarchIt<typename T>(
+    thresholdSlighDilatation->SetInput( FastMarchIt<T>(
                                            addFilter->GetOutput(),
                                            "Out",
                                            dErodeDistance,
@@ -1538,7 +1538,7 @@ template<class T> int DoIt(int argc, char* argv[], T)
 
     if (bDebug)
       {
-      typename WriterLabelType::Pointer writer = typename WriterLabelType::New();
+      typename WriterLabelType::Pointer writer = WriterLabelType::New();
       writer->SetInput( thresholdSlighDilatation->GetOutput() );
       std::string filename = sDebugFolder;
       filename += "UndesiredParts_NormalSize.nrrd";
@@ -1560,14 +1560,14 @@ template<class T> int DoIt(int argc, char* argv[], T)
     //--
 
     typename TMaskImageFilter::Pointer substractSinusesMask
-      = typename TMaskImageFilter::New();
+      = TMaskImageFilter::New();
     substractSinusesMask->SetMaskImage( thresholdSlighDilatation->GetOutput() );
     substractSinusesMask->SetInput( FinalSegmentation );
     substractSinusesMask->Update();
 
     if (bDebug)
       {
-      typename WriterLabelType::Pointer writer = typename WriterLabelType::New();
+      typename WriterLabelType::Pointer writer = WriterLabelType::New();
       writer->SetInput( substractSinusesMask->GetOutput() );
       std::string filename = sDebugFolder;
       filename += "TrimmedAirway_Dirty.nrrd";
@@ -1588,22 +1588,22 @@ template<class T> int DoIt(int argc, char* argv[], T)
     //-- Clean up
     //--
     typename ConnectedComponentType::Pointer connectedCleanUp =
-      typename ConnectedComponentType::New();
+      ConnectedComponentType::New();
     typename RelabelComponentType::Pointer relabelCleanUp =
-      typename RelabelComponentType::New();
+      RelabelComponentType::New();
 
     connectedCleanUp->SetInput( substractSinusesMask->GetOutput() );
     relabelCleanUp->SetInput( connectedCleanUp->GetOutput() );
     relabelCleanUp->SetNumberOfObjectsToPrint( 5 );
     relabelCleanUp->Update();
 
-    nNumAirway = LabelIt<typename T>(relabelCleanUp->GetOutput(),
+    nNumAirway = LabelIt<T>(relabelCleanUp->GetOutput(),
                                       upperSeed,
                                       upperSeedRadius,
                                       bDebug);
 
     typename FinalThresholdingFilterType::Pointer thresholdCleanUp =
-      typename FinalThresholdingFilterType::New();
+      FinalThresholdingFilterType::New();
     thresholdCleanUp->SetLowerThreshold( nNumAirway );
     thresholdCleanUp->SetUpperThreshold( nNumAirway );
     thresholdCleanUp->SetOutsideValue( 0 );
