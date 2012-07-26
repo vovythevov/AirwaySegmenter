@@ -459,13 +459,111 @@ template<class T> int DoIt(int argc, char* argv[], T)
   thresholdDilation->SetOutsideValue( 0 );
   thresholdDilation->SetInsideValue( 1 );
 
-  //Using custom fast marching function
-  thresholdDilation->SetInput( FastMarchIt<T>(
-                                otsuThresholdFilter->GetOutput(),
-                                "Out",
-                                dErodeDistance, 
-                                dMaxAirwayRadius) );
+  //Custom Fast marching
+  typedef itk::FastMarchingImageFilter<FloatImageType, FloatImageType>  FastMarchingFilterType;
+  typedef typename FastMarchingFilterType::NodeContainer  NodeContainer;
+  typedef typename FastMarchingFilterType::NodeType NodeType;
+  typedef itk::ImageRegionConstIterator<LabelImageType>  ConstIteratorType;
 
+  //Instantiations
+  typename FastMarchingFilterType::Pointer fastMarchingDilate = FastMarchingFilterType::New();
+  typename NodeContainer::Pointer trialSeeds = NodeContainer::New();
+  typename NodeContainer::Pointer aliveSeeds = NodeContainer::New();
+  trialSeeds->Initialize();
+  aliveSeeds->Initialize();
+
+  //Nodes are created as stack variables and
+  //initialized with a value and an itk::Index position. NodeType node;
+  NodeType node;
+  node.SetValue( 0.0 );
+
+  // loop through the output image
+  // and set all voxels to 0 seed voxels
+  ConstIteratorType binaryImageIterator( otsuThresholdFilter->GetOutput(),
+                                         otsuThresholdFilter->GetOutput()->GetLargestPossibleRegion() );
+  ConstIteratorType imageIterator( originalImage,
+                                   originalImage->GetLargestPossibleRegion() );
+
+  unsigned int uiNumberOfTrialSeeds = 0;
+  unsigned int uiNumberOfAliveSeeds = 0;
+  imageIterator.GoToBegin();
+  for ( binaryImageIterator.GoToBegin(); !binaryImageIterator.IsAtEnd(); ++binaryImageIterator )
+    {
+    if ( binaryImageIterator.Get() > 0 )
+      {
+      node.SetIndex( binaryImageIterator.GetIndex() );
+
+      if (imageIterator.Get() > 60) //alive seed
+        {
+        aliveSeeds->InsertElement( uiNumberOfAliveSeeds++, node );
+        }
+      else //trial seed
+        {
+        trialSeeds->InsertElement( uiNumberOfTrialSeeds++, node );
+        }
+      }
+    ++imageIterator;
+    }
+
+  if (bDebug)
+    {
+    std::cout<<std::endl<<std::endl
+           <<"FastMarching Dilatation: Number of Alive Seeds: "<<aliveSeeds->Size()
+           <<std::endl
+           <<"                         Number of Trial Seeds: "<<trialSeeds->Size()
+           <<std::endl;
+    }
+
+  //The set of seed nodes is now passed to the
+  // FastMarchingImageFilter with the method SetTrialPoints().
+  fastMarchingDilate->SetTrialPoints( trialSeeds );
+  fastMarchingDilate->SetAlivePoints( aliveSeeds );
+
+  // The FastMarchingImageFilter requires the user to specify
+  //the size of the image to be produced as output.
+  //This is done using the SetOutputSize()
+
+  fastMarchingDilate->SetInput( NULL );
+  fastMarchingDilate->SetSpeedConstant( 1.0 );  // to solve a simple Eikonal equation
+
+  fastMarchingDilate->SetOutputSize( otsuThresholdFilter->GetOutput()->GetBufferedRegion().GetSize() );
+  fastMarchingDilate->SetOutputRegion( otsuThresholdFilter->GetOutput()->GetBufferedRegion() );
+  fastMarchingDilate->SetOutputSpacing( otsuThresholdFilter->GetOutput()->GetSpacing() );
+  fastMarchingDilate->SetOutputOrigin( otsuThresholdFilter->GetOutput()->GetOrigin() );
+
+  fastMarchingDilate->SetStoppingValue( dErodeDistance + dMaxAirwayRadius+ 1 );
+
+  try
+    {
+    fastMarchingDilate->Update();
+    }
+  catch(itk::ExceptionObject & excep )
+    {
+    std::cerr << "Exception caught !" << std::endl;
+    std::cerr << excep << std::endl;
+    }
+
+  if (bDebug)
+    {
+    typedef itk::ImageFileWriter<FloatImageType> WriterFloatType;
+    typename WriterFloatType::Pointer writer = WriterFloatType::New();
+    writer->SetInput( fastMarchingDilate->GetOutput() );
+    std::string filename = sDebugFolder;
+    filename += "/fmt-out.nhdr";
+    writer->SetFileName( filename );
+
+    try
+      {
+      writer->Update();
+      }
+    catch ( itk::ExceptionObject & excep )
+      {
+      std::cerr << "Exception caught !" << std::endl;
+      std::cerr << excep << std::endl;
+      }
+    }
+
+  thresholdDilation->SetInput( fastMarchingDilate->GetOutput() );
   thresholdDilation->Update();
 
   // Now write this for test purposes
@@ -498,11 +596,99 @@ template<class T> int DoIt(int argc, char* argv[], T)
   thresholdClosing->SetOutsideValue( 1 ); 
   thresholdClosing->SetInsideValue( 0 );
 
-  thresholdClosing->SetInput( FastMarchIt<T>(
-                                thresholdDilation->GetOutput(),
-                                "In",
-                                dErodeDistance,
-                                dMaxAirwayRadius) );
+  //Instantiations
+  typename FastMarchingFilterType::Pointer fastMarchingClose = FastMarchingFilterType::New();
+  trialSeeds->Initialize();
+  aliveSeeds->Initialize();
+
+  // loop through the output image
+  // and set all voxels to 0 seed voxels
+  typedef itk::ImageRegionConstIterator<FloatImageType>  ConstFloatIteratorType;
+  ConstFloatIteratorType floatDilatedImageIterator( fastMarchingDilate->GetOutput(),
+                                                    fastMarchingDilate->GetOutput()->GetLargestPossibleRegion() );
+  ConstIteratorType binaryDilatedImageIterator( thresholdDilation->GetOutput(),
+                                                thresholdDilation->GetOutput()->GetLargestPossibleRegion() );
+
+  uiNumberOfTrialSeeds = 0;
+  uiNumberOfAliveSeeds = 0;
+  floatDilatedImageIterator.GoToBegin();
+  for ( binaryDilatedImageIterator.GoToBegin(); !binaryDilatedImageIterator.IsAtEnd(); ++binaryDilatedImageIterator )
+    {
+    if ( binaryDilatedImageIterator.Get() == 0 )
+      {
+      node.SetIndex( binaryDilatedImageIterator.GetIndex() );
+
+      if (floatDilatedImageIterator.Get() > dMaxAirwayRadius + dErodeDistance) //alive seed
+        {
+        aliveSeeds->InsertElement( uiNumberOfAliveSeeds++, node );
+        }
+      else //trial seed
+        {
+        trialSeeds->InsertElement( uiNumberOfTrialSeeds++, node );
+        }
+      }
+    ++floatDilatedImageIterator;
+    }
+
+  if (bDebug)
+    {
+    std::cout<<std::endl<<std::endl
+           <<"FastMarching Close: Number of Alive Seeds: "<<aliveSeeds->Size()<<" "<<uiNumberOfAliveSeeds
+           <<std::endl
+           <<"                    Number of Trial Seeds: "<<trialSeeds->Size()<<" "<<uiNumberOfTrialSeeds
+           <<std::endl;
+    }
+
+  //The set of seed nodes is now passed to the
+  // FastMarchingImageFilter with the method SetTrialPoints().
+  fastMarchingClose->SetTrialPoints( trialSeeds );
+  fastMarchingClose->SetAlivePoints( aliveSeeds );
+
+  // The FastMarchingImageFilter requires the user to specify
+  //the size of the image to be produced as output.
+  //This is done using the SetOutputSize().
+
+  fastMarchingClose->SetInput( NULL );
+  fastMarchingClose->SetSpeedConstant( 1.0 );  // to solve a simple Eikonal equation
+
+  fastMarchingClose->SetOutputSize( thresholdDilation->GetOutput()->GetBufferedRegion().GetSize() );
+  fastMarchingClose->SetOutputRegion( thresholdDilation->GetOutput()->GetBufferedRegion() );
+  fastMarchingClose->SetOutputSpacing( thresholdDilation->GetOutput()->GetSpacing() );
+  fastMarchingClose->SetOutputOrigin( thresholdDilation->GetOutput()->GetOrigin() );
+
+  fastMarchingClose->SetStoppingValue( dErodeDistance + dMaxAirwayRadius+ 1 );
+
+  try
+    {
+    fastMarchingClose->Update();
+    }
+  catch(itk::ExceptionObject & excep )
+    {
+    std::cerr << "Exception caught !" << std::endl;
+    std::cerr << excep << std::endl;
+    }
+
+  if (bDebug)
+    {
+    typedef itk::ImageFileWriter<FloatImageType> WriterFloatType;
+    typename WriterFloatType::Pointer writer = WriterFloatType::New();
+    writer->SetInput( fastMarchingClose->GetOutput() );
+    std::string filename = sDebugFolder;
+    filename += "/fmt-out.nhdr";
+    writer->SetFileName( filename );
+
+    try
+      {
+      writer->Update();
+      }
+    catch ( itk::ExceptionObject & excep )
+      {
+      std::cerr << "Exception caught !" << std::endl;
+      std::cerr << excep << std::endl;
+      }
+    }
+
+  thresholdClosing->SetInput( fastMarchingClose->GetOutput() );
   thresholdClosing->Update();
 
   // Now write this for test purposes
@@ -671,11 +857,12 @@ template<class T> int DoIt(int argc, char* argv[], T)
   typename ThresholdingFilterType::Pointer thresholdExtendedSegmentation =
     ThresholdingFilterType::New();
 
+  //There are enough few seeds that they can all be considered as part of the trial seeds
   thresholdExtendedSegmentation->SetInput( FastMarchIt<T>(
-                                              largestComponentThreshold->GetOutput(),
-                                              "Out", 
-                                              dErodeDistance,
-                                              dMaxAirwayRadius) );
+                                             largestComponentThreshold->GetOutput(),
+                                             "Out",
+                                             dErodeDistance,
+                                             dMaxAirwayRadius) );
 
   thresholdExtendedSegmentation->SetLowerThreshold( 0.0 );
   
