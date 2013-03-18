@@ -57,7 +57,7 @@ public:
   /** Method for creation through the object factory. */
   itkNewMacro(Self);  
 
-  /** Runtime information support. */ 
+  /** Runtime information support. */
   itkTypeMacro(IsoSurfaceWriter, ImageToImageFilter);
   
   /** Image pixel value typedef. */

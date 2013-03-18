@@ -183,7 +183,7 @@ AirwaySurfaceWriter<TInputImage, TMaskImage>
 
     	try
       	{
-      		writerSample->Update(); 
+      		writerSample->Update();
       	}
     	catch ( itk::ExceptionObject & excep )
       	{

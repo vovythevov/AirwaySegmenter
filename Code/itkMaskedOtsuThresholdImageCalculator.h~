@@ -72,7 +72,7 @@ public:
   /** Type definition for the input image region type. */
   typedef typename TInputImage::RegionType RegionType;
   
-  /** Set the input image. */ 
+  /** Set the input image. */
   itkSetConstObjectMacro(Image,ImageType);
 
   /** Compute the Otsu's threshold for the input image. */
