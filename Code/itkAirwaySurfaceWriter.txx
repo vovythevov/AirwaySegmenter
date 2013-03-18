@@ -36,6 +36,12 @@
 #include <vtkXMLPolyDataWriter.h>
 #include <vtkTransform.h>
 #include <vtkTransformPolyDataFilter.h>
+#include <itkResampleImageFilter.h>
+#include <itkBSplineInterpolateImageFunction.h>
+#include <itkIdentityTransform.h>
+#include <itkImageFileWriter.h>
+#include <vtkSmoothPolyDataFilter.h>
+#include <vtkPolyDataConnectivityFilter.h>
 
 namespace itk {
 
@@ -132,7 +138,59 @@ AirwaySurfaceWriter<TInputImage, TMaskImage>
     thresholdDilation->SetInput( fastMarching->GetOutput() );
     thresholdDilation->Update();
   
-    maskFilter->SetMaskImage(thresholdDilation->GetOutput());
+//    maskFilter->SetMaskImage(thresholdDilation->GetOutput());
+
+    // upsample the binary image
+    typedef itk::ResampleImageFilter<TFloatImage, TFloatImage> resampleFilterType;
+    typename resampleFilterType::Pointer resampleBinaryFilter = resampleFilterType::New();
+    resampleBinaryFilter->SetInput( thresholdDilation->GetOutput() );
+
+    resampleBinaryFilter->SetOutputOrigin( thresholdDilation->GetOutput()->GetOrigin() );
+
+    InputSizeType outputBinarySize = thresholdDilation->GetOutput()->GetLargestPossibleRegion().GetSize();
+    InputSpacingType outputBinarySpacing = thresholdDilation->GetOutput()->GetSpacing();
+    for( int iI = 0; iI < 3; iI++ )
+    {
+        outputBinarySize[iI] *= 2;
+        outputBinarySpacing[iI] /= 2;
+    }
+    resampleBinaryFilter->SetSize( outputBinarySize );
+    resampleBinaryFilter->SetOutputSpacing( outputBinarySpacing );
+
+    typedef itk::IdentityTransform<double, 3> TransformType;
+    resampleBinaryFilter->SetTransform( TransformType::New() );
+
+    resampleBinaryFilter->Update();
+
+    typedef itk::BinaryThresholdImageFilter< TFloatImage, TFloatImage > BinaryThresholdImageFilterType;
+    BinaryThresholdImageFilterType::Pointer thresholdFilter = BinaryThresholdImageFilterType::New();
+    thresholdFilter->SetInput( resampleBinaryFilter->GetOutput() );
+    thresholdFilter->SetLowerThreshold(0.5);
+    thresholdFilter->SetUpperThreshold(1.0);
+    thresholdFilter->SetInsideValue(1);
+    thresholdFilter->SetOutsideValue(0);
+    thresholdFilter->Update();
+
+    maskFilter->SetMaskImage( thresholdFilter->GetOutput() );
+
+    /*{
+	typedef itk::ImageFileWriter<TFloatImage> WriterLabelType;
+    	typename WriterLabelType::Pointer writerSample = WriterLabelType::New();
+    	writerSample->SetInput( resampleBinaryFilter->GetOutput() );
+    	std::string filename = "/playpen/Project/airwayAtlas/AirwaySegmenterInSlicer";
+    	filename += "/upsample_binary.nhdr";
+    	writerSample->SetFileName( filename );
+
+    	try
+      	{
+      		writerSample->Update(); 
+      	}
+    	catch ( itk::ExceptionObject & excep )
+      	{
+      	std::cerr << "Exception caught !" << std::endl; std::cerr << excep << std::endl;
+     	}
+    }*/
+
     }
   else
     {
@@ -153,27 +211,133 @@ AirwaySurfaceWriter<TInputImage, TMaskImage>
     dilateFilter->SetKernel(structuringElement);
     dilateFilter->Update();
 
-    maskFilter->SetMaskImage(dilateFilter->GetOutput());
+ //   maskFilter->SetMaskImage(dilateFilter->GetOutput());
+
+    // upsample the binary image
+    typedef itk::ResampleImageFilter<TFloatImage, TFloatImage> resampleFilterType;
+    typename resampleFilterType::Pointer resampleBinaryFilter = resampleFilterType::New();
+    resampleBinaryFilter->SetInput( dilateFilter->GetOutput() );
+
+    resampleBinaryFilter->SetOutputOrigin( dilateFilter->GetOutput()->GetOrigin() );
+
+    InputSizeType outputBinarySize = dilateFilter->GetOutput()->GetLargestPossibleRegion().GetSize();
+    InputSpacingType outputBinarySpacing = dilateFilter->GetOutput()->GetSpacing();
+    for( int iI = 0; iI < 3; iI++ )
+    {
+        outputBinarySize[iI] *= 2;
+        outputBinarySpacing[iI] /= 2;
     }
+    resampleBinaryFilter->SetSize( outputBinarySize );
+    resampleBinaryFilter->SetOutputSpacing( outputBinarySpacing );
+
+    typedef itk::IdentityTransform<double, 3> TransformType;
+    resampleBinaryFilter->SetTransform( TransformType::New() );
+
+    resampleBinaryFilter->Update();
+    maskFilter->SetMaskImage( resampleBinaryFilter->GetOutput() );
+    }
+
+  // upsample the original image
+  typedef itk::ResampleImageFilter<TInputImage, TInputImage> resampleFilterType;
+  typename resampleFilterType::Pointer resampleOriginalFilter = resampleFilterType::New();
+  resampleOriginalFilter->SetInput( this->GetInput() );
+
+  resampleOriginalFilter->SetOutputOrigin( this->GetInput()->GetOrigin() );
+
+  InputSizeType outputOriginalSize = this->GetInput()->GetLargestPossibleRegion().GetSize();
+  InputSpacingType outputOriginalSpacing = this->GetInput()->GetSpacing();
+  for( int iI = 0; iI < 3; iI++ )
+  {
+        outputOriginalSize[iI] *= 2;
+        outputOriginalSpacing[iI] /= 2;
+  }
+  resampleOriginalFilter->SetSize( outputOriginalSize );
+  resampleOriginalFilter->SetOutputSpacing( outputOriginalSpacing );
+
+  typedef itk::IdentityTransform<double, 3> TransformType;
+  resampleOriginalFilter->SetTransform( TransformType::New() );
+
+  typedef itk::BSplineInterpolateImageFunction<TInputImage, double, double> bsplineInterpolatorType;
+  typename bsplineInterpolatorType::Pointer interpolatorOriginal = bsplineInterpolatorType::New();
+  interpolatorOriginal->SetSplineOrder(3);
+  resampleOriginalFilter->SetInterpolator( interpolatorOriginal );
+
+  resampleOriginalFilter->Update();
+
+  /*{
+  typedef itk::ImageFileWriter<TInputImage> WriterLabelType;
+    typename WriterLabelType::Pointer writerSample = WriterLabelType::New();
+    writerSample->SetInput( resampleOriginalFilter->GetOutput() );
+    std::string filename = "/playpen/Project/airwayAtlas/AirwaySegmenterInSlicer";
+    filename += "/upsample_original.nhdr";
+    writerSample->SetFileName( filename );
+
+    try
+      {
+      writerSample->Update();
+      }
+    catch ( itk::ExceptionObject & excep )
+      {
+      std::cerr << "Exception caught !" << std::endl; std::cerr << excep << std::endl;
+      }
+   }*/
 
   //
   //Masking
   //
   
-  maskFilter->SetInput(this->GetInput());
+  //maskFilter->SetInput(this->GetInput());
+  maskFilter->SetInput(resampleOriginalFilter->GetOutput());
   maskFilter->SetOutsideValue(std::numeric_limits<InputPixelType>::max());
   maskFilter->Update();
 
-  //
-  //Threshold
-  //
+  /*
+  // Upsampling 
+  typedef itk::ResampleImageFilter<TInputImage, TInputImage> resampleFilterType;
+  typename resampleFilterType::Pointer resampleFilter = resampleFilterType::New();
+  resampleFilter->SetInput( maskFilter->GetOutput() );
 
-  typedef itk::OtsuThresholdImageFilter<TInputImage, TInputImage>  otsuThresholdFilterType;
-  typename otsuThresholdFilterType::Pointer otsuThreshold = otsuThresholdFilterType::New();
-  otsuThreshold->SetInsideValue( 0 );
-  otsuThreshold->SetOutsideValue( 1 );
-  otsuThreshold->SetInput( maskFilter->GetOutput() );
-  otsuThreshold->Update();
+  resampleFilter->SetOutputOrigin( maskFilter->GetOutput()->GetOrigin() );
+
+  InputSizeType outputSize = maskFilter->GetOutput()->GetLargestPossibleRegion().GetSize();
+  InputSpacingType outputSpacing = maskFilter->GetOutput()->GetSpacing();
+  for( int iI = 0; iI < 3; iI++ )
+  {
+	outputSize[iI] *= 2;
+	outputSpacing[iI] /= 2;
+  }
+  resampleFilter->SetSize( outputSize );
+  resampleFilter->SetOutputSpacing( outputSpacing );
+
+  typedef itk::IdentityTransform<double, 3> TransformType;
+  resampleFilter->SetTransform( TransformType::New() );
+
+  typedef itk::BSplineInterpolateImageFunction<TInputImage, double, double> bsplineInterpolatorType;
+  typename bsplineInterpolatorType::Pointer interpolator = bsplineInterpolatorType::New();
+  interpolator->SetSplineOrder(3);
+  resampleFilter->SetInterpolator( interpolator );
+
+  resampleFilter->Update();
+  
+  //if (bDebug)
+  //  {
+    typedef itk::ImageFileWriter<TInputImage> WriterLabelType;
+    typename WriterLabelType::Pointer writerSample = WriterLabelType::New();
+    writerSample->SetInput( resampleFilter->GetOutput() );
+    std::string filename = "/playpen/Project/airwayAtlas/AirwaySegmenterInSlicer";
+    filename += "/upsample_image.nhdr";
+    writerSample->SetFileName( filename );
+
+    try
+      {
+      writerSample->Update();
+      }
+    catch ( itk::ExceptionObject & excep )
+      {
+      std::cerr << "Exception caught !" << std::endl; std::cerr << excep << std::endl; 
+      }
+    //}
+   */
 
   //
   //Contour
@@ -182,15 +346,30 @@ AirwaySurfaceWriter<TInputImage, TMaskImage>
   //Conversion to VTK
   typedef itk::ImageToVTKImageFilter<TInputImage> adaptatorFromITKtoVTKType;
   typename adaptatorFromITKtoVTKType::Pointer toVTKFilter = adaptatorFromITKtoVTKType::New();
-  toVTKFilter->SetInput( otsuThreshold->GetInput() );
+  toVTKFilter->SetInput( maskFilter->GetOutput() );
+  //toVTKFilter->SetInput( resampleFilter->GetOutput() );
   toVTKFilter->Update();
 
   //Apply VTK Filter
   vtkSmartPointer<vtkContourFilter> contourFilter = vtkContourFilter::New();
   contourFilter->SetInput(toVTKFilter->GetOutput());
-  contourFilter->SetValue(0, 1.0);
+  contourFilter->SetValue(0, this->m_dThreshold);
   contourFilter->Update();
+
+  // Get the largest connectivity
+  vtkSmartPointer<vtkPolyDataConnectivityFilter> connectivityFilter = vtkPolyDataConnectivityFilter::New();
+  connectivityFilter->SetInput(contourFilter->GetOutput());
+  connectivityFilter->SetExtractionModeToLargestRegion();
+  connectivityFilter->Update();
   
+  /*
+  // smooth meshes
+  vtkSmartPointer<vtkSmoothPolyDataFilter> smoothFilter = vtkSmoothPolyDataFilter::New();
+  smoothFilter->SetInput(connectivityFilter->GetOutput());
+  smoothFilter->SetNumberOfIterations(100);
+  smoothFilter->Update();
+  */  
+
   //Transform it to IJK (i.e. pixel space) 
   // <-> equivalent to a rotation of 180 degrees around the Z axis
   vtkSmartPointer<vtkTransform> transform = vtkTransform::New();
@@ -198,7 +377,8 @@ AirwaySurfaceWriter<TInputImage, TMaskImage>
   
   vtkSmartPointer<vtkTransformPolyDataFilter> transformer = 
     vtkTransformPolyDataFilter::New();
-  transformer->SetInput(contourFilter->GetOutput());
+  transformer->SetInput(connectivityFilter->GetOutput());
+  //transformer->SetInput(smoothFilter->GetOutput());
   transformer->SetTransform(transform);
   transformer->Update();
   

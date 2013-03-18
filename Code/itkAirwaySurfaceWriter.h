@@ -57,7 +57,7 @@ public:
   /** Method for creation through the object factory. */
   itkNewMacro(Self);  
 
-  /** Runtime information support. */
+  /** Runtime information support. */ 
   itkTypeMacro(IsoSurfaceWriter, ImageToImageFilter);
   
   /** Image pixel value typedef. */
@@ -69,10 +69,16 @@ public:
   typedef typename TInputImage::SizeType    InputSizeType;
   typedef typename TInputImage::IndexType   InputIndexType;
   typedef typename TInputImage::RegionType  InputImageRegionType;
+  typedef typename TInputImage::SpacingType InputSpacingType;
 
   void SetMaskImage( typename TMaskImage::Pointer pmask )
     {
     m_pMaskImage = pmask;
+    };
+
+  void SetThreshold( InputPixelType dThreshold )
+    {
+	m_dThreshold = dThreshold;
     };
 
   /** Image related typedefs. */
@@ -101,6 +107,7 @@ private:
   typename TMaskImage::ConstPointer   m_pMaskImage;
   std::string                         m_FileName;
   bool                                m_UseFastMarching;
+  InputPixelType 				  	  m_dThreshold;
 
 }; // end of class
 

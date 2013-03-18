@@ -35,7 +35,7 @@ namespace itk {
  * for the Calculator. The InsideValue and OutsideValue can be set
  * for the BinaryThresholdImageFilter.
  *
- * \sa MaskedOtsuThresholdImageCalculator
+ * \sa MaskedOtsuThresholdImageCalculator 
  * \sa BinaryThresholdImageFilter
  * \ingroup IntensityImageFilters  Multithreaded
  */
@@ -76,6 +76,12 @@ public:
   {
     m_pMaskImage = pmask;
   };
+
+  InputPixelType GetThreshold()
+  {
+	return m_Threshold;
+  }
+  
 
 
   /** Image related typedefs. */
